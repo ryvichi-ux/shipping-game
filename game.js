@@ -99,6 +99,7 @@ const PEOPLE_MASTER = [
 const STORAGE_KEY = "kawatari_progress_v1";
 let globalLevelClears = {};
 let moveHistory = [];      // undo snapshots: [{peopleSides, boatSide, moveCount}]
+let lastTapInfo = { id: null, time: 0 };  // cross-render double-tap tracking
 
 let currentLevel = null;   // LEVELS entry
 let people = [];           // active person objects (clones with .side)
@@ -601,7 +602,6 @@ function setupPersonDrag(button, person) {
 
 function setupBoatMiniDrag(mini, person) {
   let dragStartX, dragStartY, dragClone = null, isDragging = false, captureId = null;
-  let lastTapTime = 0;
 
   mini.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
@@ -654,11 +654,11 @@ function setupBoatMiniDrag(mini, person) {
       }
     } else {
       const now = Date.now();
-      if (now - lastTapTime < 320) {
-        lastTapTime = 0;
+      if (lastTapInfo.id === person.id && now - lastTapInfo.time < 320) {
+        lastTapInfo = { id: null, time: 0 };
         disembarkPerson();
       } else {
-        lastTapTime = now;
+        lastTapInfo = { id: person.id, time: now };
         toggleDisembarkTarget(person.id);
       }
     }
