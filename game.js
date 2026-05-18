@@ -1,197 +1,399 @@
-const people = [
-  {
-    id: "father",
-    name: "父",
-    boatLabel: "父",
-    role: "舟をこげる",
-    type: "father",
-    driver: true,
-    side: "left",
-    color: "#bdefff",
-    line: "#12304a",
-    accent: "#65f2ff",
-    skin: "#f2c8a6",
-    hair: "#27313e",
-    outfit: "#296dff",
-    icon: "father",
-  },
-  {
-    id: "mother",
-    name: "母",
-    boatLabel: "母",
-    role: "舟をこげる",
-    type: "mother",
-    driver: true,
-    side: "left",
-    color: "#ffd6ef",
-    line: "#4d1a3a",
-    accent: "#ff72c6",
-    skin: "#f4c5a9",
-    hair: "#663247",
-    outfit: "#c04789",
-    icon: "mother",
-  },
-  {
-    id: "son1",
-    name: "息子1",
-    risk: "（母×）",
-    boatLabel: "息子1",
-    role: "子ども",
-    type: "son",
-    driver: false,
-    side: "left",
-    color: "#cfe8ff",
-    line: "#173f6c",
-    accent: "#37d7ff",
-    skin: "#efc1a0",
-    hair: "#3a2619",
-    outfit: "#2186ff",
-    icon: "son-cap",
-  },
-  {
-    id: "son2",
-    name: "息子2",
-    risk: "（母×）",
-    boatLabel: "息子2",
-    role: "子ども",
-    type: "son",
-    driver: false,
-    side: "left",
-    color: "#d8ffeb",
-    line: "#164238",
-    accent: "#56f0a7",
-    skin: "#e8b996",
-    hair: "#2b2020",
-    outfit: "#1aa783",
-    icon: "son-headphones",
-  },
-  {
-    id: "daughter1",
-    name: "娘1",
-    risk: "（父×）",
-    boatLabel: "娘1",
-    role: "子ども",
-    type: "daughter",
-    driver: false,
-    side: "left",
-    color: "#ffe5c7",
-    line: "#71411d",
-    accent: "#ffb23f",
-    skin: "#f1bf9f",
-    hair: "#6d3d22",
-    outfit: "#ff8d45",
-    icon: "daughter-bow",
-  },
-  {
-    id: "daughter2",
-    name: "娘2",
-    risk: "（父×）",
-    boatLabel: "娘2",
-    role: "子ども",
-    type: "daughter",
-    driver: false,
-    side: "left",
-    color: "#ffe0f4",
-    line: "#6c2750",
-    accent: "#ff77c8",
-    skin: "#f0bea0",
-    hair: "#563044",
-    outfit: "#d954a8",
-    icon: "daughter-pigtails",
-  },
-  {
-    id: "maid",
-    name: "召使い",
-    boatLabel: "召使",
-    role: "舟をこげる",
-    type: "maid",
-    driver: true,
-    side: "left",
-    color: "#e9dcff",
-    line: "#34204f",
-    accent: "#d9cbff",
-    skin: "#efc7ad",
-    hair: "#2f2734",
-    outfit: "#4f3a81",
-    icon: "maid",
-  },
-  {
-    id: "dog",
-    name: "犬",
-    boatLabel: "犬",
-    role: "召使いが必要",
-    type: "dog",
-    driver: false,
-    side: "left",
-    color: "#ffe2bd",
-    line: "#6e452a",
-    accent: "#ffbd5f",
-    skin: "#c8834a",
-    hair: "#7a4a2f",
-    outfit: "#f4b66d",
-    icon: "dog",
-  },
+"use strict";
+
+/* ═══════════════════════════════════════════════
+   BFS SOLVER — verifies every level is solvable
+   and returns minimum move count.
+   ═══════════════════════════════════════════════ */
+function bfsSolve(levelDef, allPeople) {
+  const chars = levelDef.characters.map((id) => allPeople.find((p) => p.id === id));
+  const cap = levelDef.boatCapacity;
+  const cons = levelDef.constraints;
+
+  function stateKey(sides, boat) {
+    return sides.join("") + boat;
+  }
+
+  function isSafe(group) {
+    const types = new Set(group.map((p) => p.type));
+    const ids = new Set(group.map((p) => p.id));
+    if (cons.fatherDaughter && types.has("father") && types.has("daughter") && !types.has("mother")) return false;
+    if (cons.motherSon && types.has("mother") && types.has("son") && !types.has("father")) return false;
+    if (cons.dogMaid && ids.has("dog") && !ids.has("maid") && group.some((p) => p.type !== "dog")) return false;
+    return true;
+  }
+
+  function isBoatSafe(passengers) {
+    if (passengers.length < 2) return true;
+    return isSafe(passengers);
+  }
+
+  // sides[i] = "L" or "R"
+  const initSides = chars.map(() => "L");
+  const initKey = stateKey(initSides, "L");
+  const queue = [{ sides: initSides, boat: "L", moves: 0 }];
+  const visited = new Set([initKey]);
+
+  while (queue.length) {
+    const { sides, boat, moves } = queue.shift();
+
+    // Goal: all on right
+    if (sides.every((s) => s === "R")) return moves;
+
+    const fromSide = boat;
+    const toSide = fromSide === "L" ? "R" : "L";
+
+    // Collect people on the boat's side
+    const onSide = chars.map((c, i) => (sides[i] === fromSide ? i : -1)).filter((i) => i >= 0);
+
+    // Generate all valid subsets (1..cap) that include a driver
+    const subsets = [];
+    const n = onSide.length;
+    for (let mask = 1; mask < 1 << n; mask++) {
+      const group = [];
+      for (let b = 0; b < n; b++) {
+        if (mask & (1 << b)) group.push(onSide[b]);
+      }
+      if (group.length > cap) continue;
+      const passengers = group.map((i) => chars[i]);
+      if (!passengers.some((p) => p.driver)) continue;
+      if (!isBoatSafe(passengers)) continue;
+      subsets.push(group);
+    }
+
+    for (const group of subsets) {
+      const newSides = [...sides];
+      group.forEach((i) => (newSides[i] = toSide));
+
+      // Check both banks
+      const leftGroup = chars.filter((_, i) => newSides[i] === "L");
+      const rightGroup = chars.filter((_, i) => newSides[i] === "R");
+      if (!isSafe(leftGroup) || !isSafe(rightGroup)) continue;
+
+      const key = stateKey(newSides, toSide);
+      if (visited.has(key)) continue;
+      visited.add(key);
+      queue.push({ sides: newSides, boat: toSide, moves: moves + 1 });
+    }
+  }
+
+  return null; // unsolvable
+}
+
+/* ═══════════════════════════════════════════════
+   PEOPLE MASTER DATA
+   ═══════════════════════════════════════════════ */
+const PEOPLE_MASTER = [
+  { id: "father",    name: "父",   boatLabel: "父",   role: "舟をこげる",  type: "father",   driver: true,  color: "#bdefff", line: "#12304a", accent: "#65f2ff", skin: "#f2c8a6", hair: "#27313e", outfit: "#296dff", icon: "father"           },
+  { id: "mother",    name: "母",   boatLabel: "母",   role: "舟をこげる",  type: "mother",   driver: true,  color: "#ffd6ef", line: "#4d1a3a", accent: "#ff72c6", skin: "#f4c5a9", hair: "#663247", outfit: "#c04789", icon: "mother"           },
+  { id: "son1",      name: "息子1", boatLabel: "息子1", role: "子ども",    type: "son",      driver: false, color: "#cfe8ff", line: "#173f6c", accent: "#37d7ff", skin: "#efc1a0", hair: "#3a2619", outfit: "#2186ff", icon: "son-cap",    risk: "（母×）" },
+  { id: "son2",      name: "息子2", boatLabel: "息子2", role: "子ども",    type: "son",      driver: false, color: "#d8ffeb", line: "#164238", accent: "#56f0a7", skin: "#e8b996", hair: "#2b2020", outfit: "#1aa783", icon: "son-headphones", risk: "（母×）" },
+  { id: "daughter1", name: "娘1",  boatLabel: "娘1",  role: "子ども",    type: "daughter", driver: false, color: "#ffe5c7", line: "#71411d", accent: "#ffb23f", skin: "#f1bf9f", hair: "#6d3d22", outfit: "#ff8d45", icon: "daughter-bow",    risk: "（父×）" },
+  { id: "daughter2", name: "娘2",  boatLabel: "娘2",  role: "子ども",    type: "daughter", driver: false, color: "#ffe0f4", line: "#6c2750", accent: "#ff77c8", skin: "#f0bea0", hair: "#563044", outfit: "#d954a8", icon: "daughter-pigtails", risk: "（父×）" },
+  { id: "maid",      name: "召使", boatLabel: "召使", role: "舟をこげる",  type: "maid",     driver: true,  color: "#e9dcff", line: "#34204f", accent: "#d9cbff", skin: "#efc7ad", hair: "#2f2734", outfit: "#4f3a81", icon: "maid"             },
+  { id: "dog",       name: "犬",   boatLabel: "犬",   role: "召使が必要", type: "dog",      driver: false, color: "#ffe2bd", line: "#6e452a", accent: "#ffbd5f", skin: "#c8834a", hair: "#7a4a2f", outfit: "#f4b66d", icon: "dog"              },
 ];
 
-const state = {
+/* ═══════════════════════════════════════════════
+   GLOBAL STATE
+   ═══════════════════════════════════════════════ */
+const STORAGE_KEY = "kawatari_progress_v1";
+
+let currentLevel = null;   // LEVELS entry
+let people = [];           // active person objects (clones with .side)
+let gameState = {
   boatSide: "left",
   selected: [],
   disembarkTarget: null,
   moveCount: 0,
   isMoving: false,
   toastTimer: null,
+  timerInterval: null,
+  startTime: null,
+  elapsedSeconds: 0,
+};
+
+/* ═══════════════════════════════════════════════
+   PROGRESS (localStorage)
+   ═══════════════════════════════════════════════ */
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveProgress(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+function markCleared(levelId, moves, seconds) {
+  const p = loadProgress();
+  const prev = p[levelId];
+  if (!prev || moves < prev.moves || (moves === prev.moves && seconds < prev.time)) {
+    p[levelId] = { moves, time: seconds };
+    saveProgress(p);
+  }
+}
+function isCleared(levelId) { return !!loadProgress()[levelId]; }
+function bestRecord(levelId) { return loadProgress()[levelId] || null; }
+
+/* ═══════════════════════════════════════════════
+   GLOBAL STATS (Cloudflare Pages Function)
+   ═══════════════════════════════════════════════ */
+const STATS_URL = "/api/stats";
+
+async function reportAccess() {
+  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "access" }) }); }
+  catch {}
+}
+async function reportClear(levelId, name, moves, time) {
+  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "clear", levelId, name, moves, time }) }); }
+  catch {}
+}
+async function fetchGlobalStats() {
+  try {
+    const r = await fetch(STATS_URL);
+    return await r.json();
+  } catch { return null; }
+}
+async function fetchLevelScores(levelId) {
+  try {
+    const r = await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "scores", levelId }) });
+    const d = await r.json();
+    return d.scores || [];
+  } catch { return []; }
+}
+
+/* ═══════════════════════════════════════════════
+   DOM REFS
+   ═══════════════════════════════════════════════ */
+const screens = {
+  select: document.getElementById("screen-select"),
+  intro:  document.getElementById("screen-intro"),
+  game:   document.getElementById("screen-game"),
+};
+
+const elSel = {
+  grid:       document.getElementById("levelGrid"),
+  statsAccess: document.getElementById("statsAccesses"),
+  statsClears: document.getElementById("statsClears"),
+};
+
+const elIntro = {
+  badge:       document.getElementById("introBadge"),
+  title:       document.getElementById("introTitle"),
+  subtitle:    document.getElementById("introSubtitle"),
+  text:        document.getElementById("introText"),
+  constraints: document.getElementById("introConstraints"),
+  moveLimit:   document.getElementById("introMoveLimit"),
+  startBtn:    document.getElementById("introStartBtn"),
+  backBtn:     document.getElementById("introBackBtn"),
+  scores:      document.getElementById("introScores"),
+  scoresList:  document.getElementById("introScoresList"),
 };
 
 const el = {
-  board: document.querySelector(".board"),
-  leftPeople: document.querySelector("#leftPeople"),
-  rightPeople: document.querySelector("#rightPeople"),
-  boatButton: document.querySelector("#boatButton"),
-  boatPassengers: document.querySelector("#boatPassengers"),
-  crossButton: document.querySelector("#crossButton"),
-  clearButton: document.querySelector("#clearButton"),
-  resetButton: document.querySelector("#resetButton"),
-  moveCount: document.querySelector("#moveCount"),
-  boatSideText: document.querySelector("#boatSideText"),
-  selectionCount: document.querySelector("#selectionCount"),
-  leftCount: document.querySelector("#leftCount"),
-  rightCount: document.querySelector("#rightCount"),
-  toast: document.querySelector("#toast"),
-  ruleToggle: document.querySelector("#ruleToggle"),
-  rules: document.querySelector("#rules"),
-  winDialog: document.querySelector("#winDialog"),
-  finalMoves: document.querySelector("#finalMoves"),
-  playAgainButton: document.querySelector("#playAgainButton"),
+  board:         document.querySelector(".board"),
+  leftPeople:    document.getElementById("leftPeople"),
+  rightPeople:   document.getElementById("rightPeople"),
+  boatButton:    document.getElementById("boatButton"),
+  boatPassengers:document.getElementById("boatPassengers"),
+  crossButton:   document.getElementById("crossButton"),
+  clearButton:   document.getElementById("clearButton"),
+  resetButton:   document.getElementById("resetButton"),
+  backToSelect:  document.getElementById("backToSelect"),
+  moveCount:     document.getElementById("moveCount"),
+  boatSideText:  document.getElementById("boatSideText"),
+  selectionCount:document.getElementById("selectionCount"),
+  leftCount:     document.getElementById("leftCount"),
+  rightCount:    document.getElementById("rightCount"),
+  moveLimitBadge:document.getElementById("moveLimitBadge"),
+  timerDisplay:  document.getElementById("timerDisplay"),
+  toast:         document.getElementById("toast"),
+  ruleToggle:    document.getElementById("ruleToggle"),
+  rules:         document.getElementById("rules"),
+  winDialog:     document.getElementById("winDialog"),
+  winTitle:      document.getElementById("winTitle"),
+  finalMoves:    document.getElementById("finalMoves"),
+  finalTime:     document.getElementById("finalTime"),
+  nameInput:     document.getElementById("nameInput"),
+  submitScore:   document.getElementById("submitScore"),
+  nextLevelBtn:  document.getElementById("nextLevelBtn"),
+  playAgainButton:document.getElementById("playAgainButton"),
+  backFromWin:   document.getElementById("backFromWin"),
 };
 
-const sideLabel = {
-  left: "左岸",
-  right: "右岸",
-};
+const sideLabel = { left: "左岸", right: "右岸" };
 
+/* ═══════════════════════════════════════════════
+   SCREEN NAVIGATION
+   ═══════════════════════════════════════════════ */
+function showScreen(name) {
+  Object.entries(screens).forEach(([k, v]) => v.classList.toggle("active", k === name));
+}
+
+/* ═══════════════════════════════════════════════
+   LEVEL SELECT SCREEN
+   ═══════════════════════════════════════════════ */
+async function initSelectScreen() {
+  showScreen("select");
+  buildLevelGrid();
+
+  const stats = await fetchGlobalStats();
+  if (stats) {
+    if (elSel.statsAccess) elSel.statsAccess.textContent = stats.accesses.toLocaleString();
+    if (elSel.statsClears) elSel.statsClears.textContent = stats.clears.toLocaleString();
+  }
+}
+
+function buildLevelGrid() {
+  const progress = loadProgress();
+  elSel.grid.innerHTML = "";
+
+  LEVELS.forEach((lvl, idx) => {
+    const unlocked = idx === 0 || isCleared(LEVELS[idx - 1].id);
+    const cleared  = isCleared(lvl.id);
+    const best     = progress[lvl.id];
+
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "level-card" + (cleared ? " cleared" : "") + (unlocked ? "" : " locked");
+    card.disabled = !unlocked;
+    card.innerHTML = `
+      <span class="level-num">${lvl.id}</span>
+      <span class="level-card-title">${lvl.title}</span>
+      ${cleared && best ? `<span class="level-best">${best.moves}手 ${formatTime(best.time)}</span>` : ""}
+      ${!unlocked ? `<span class="level-lock">🔒</span>` : ""}
+      ${cleared ? `<span class="level-check">✓</span>` : ""}
+    `;
+    card.addEventListener("click", () => openIntroScreen(lvl));
+    elSel.grid.append(card);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   INTRO SCREEN
+   ═══════════════════════════════════════════════ */
+async function openIntroScreen(lvl) {
+  currentLevel = lvl;
+
+  elIntro.badge.textContent     = `ステージ ${lvl.id}`;
+  elIntro.title.textContent     = lvl.title;
+  elIntro.subtitle.textContent  = lvl.subtitle;
+  elIntro.text.textContent      = lvl.intro;
+
+  // Constraints summary
+  const cap = lvl.boatCapacity ?? 2;
+  const capLabel = cap === 3 ? "最大3人乗り" : cap === 1 ? "1人乗り" : "最大2人乗り";
+  const cLines = [`• 船は${capLabel}`];
+  if (lvl.constraints.fatherDaughter) cLines.push("• 父は母がいないと娘を怒ります");
+  if (lvl.constraints.motherSon)      cLines.push("• 母は父がいないと息子を怒ります");
+  if (lvl.constraints.dogMaid)        cLines.push("• 犬は召使がいないとみんなを噛み殺します");
+  if (cLines.length === 1)            cLines.push("• 相性制約はありません");
+  elIntro.constraints.innerHTML = cLines.join("<br>");
+
+  elIntro.moveLimit.textContent = lvl.moveLimit
+    ? `制限手数：${lvl.moveLimit}手以内`
+    : "手数制限なし";
+
+  // Leaderboard
+  const scores = await fetchLevelScores(lvl.id);
+  elIntro.scoresList.innerHTML = "";
+  if (scores.length) {
+    elIntro.scores.hidden = false;
+    scores.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="rank">${i + 1}.</span><span class="sname">${s.name}</span><span class="smoves">${s.moves}手</span><span class="stime">${formatTime(s.time)}</span>`;
+      elIntro.scoresList.append(li);
+    });
+  } else {
+    elIntro.scores.hidden = true;
+  }
+
+  showScreen("intro");
+}
+
+elIntro.startBtn?.addEventListener("click", () => startGame(currentLevel));
+elIntro.backBtn?.addEventListener("click", initSelectScreen);
+
+/* ═══════════════════════════════════════════════
+   GAME ENGINE
+   ═══════════════════════════════════════════════ */
+function startGame(lvl) {
+  currentLevel = lvl;
+
+  // Clone people for this level
+  people = lvl.characters.map((id) => ({ ...PEOPLE_MASTER.find((p) => p.id === id), side: "left" }));
+
+  // Set risk labels based on active constraints
+  people.forEach((p) => {
+    if (!lvl.constraints.fatherDaughter) delete p.risk;
+    if (!lvl.constraints.motherSon && p.type === "son") delete p.risk;
+    if (!lvl.constraints.fatherDaughter && p.type === "daughter") delete p.risk;
+  });
+
+  // Reset state
+  Object.assign(gameState, {
+    boatSide: "left",
+    selected: [],
+    disembarkTarget: null,
+    moveCount: 0,
+    isMoving: false,
+    elapsedSeconds: 0,
+    startTime: Date.now(),
+  });
+
+  // Move limit badge
+  if (el.moveLimitBadge) {
+    el.moveLimitBadge.textContent = lvl.moveLimit ? `残り ${lvl.moveLimit} 手` : "";
+    el.moveLimitBadge.hidden = !lvl.moveLimit;
+  }
+
+  // Update active constraints in rules panel
+  updateRulesPanel(lvl);
+
+  // Start timer
+  clearInterval(gameState.timerInterval);
+  gameState.timerInterval = setInterval(tickTimer, 1000);
+
+  showScreen("game");
+  render();
+}
+
+function tickTimer() {
+  gameState.elapsedSeconds = Math.floor((Date.now() - gameState.startTime) / 1000);
+  if (el.timerDisplay) el.timerDisplay.textContent = formatTime(gameState.elapsedSeconds);
+}
+
+function updateRulesPanel(lvl) {
+  const rulesEl = document.getElementById("rules");
+  if (!rulesEl) return;
+  const cap = lvl.boatCapacity ?? 2;
+  const capLabel = cap === 1 ? "一人" : cap === 2 ? "一人か二人" : cap === 3 ? "一人から三人" : `${cap}人まで`;
+  const items = [
+    "対岸に全員を渡してください。",
+    `船は${capLabel}で移動できます。`,
+    "船は父、母、召使だけがこげます。",
+  ];
+  if (lvl.constraints.fatherDaughter) items.push("父は母親がいないと、娘を怒ります。");
+  if (lvl.constraints.motherSon)      items.push("母は父親がいないと息子を怒ります。");
+  if (lvl.constraints.dogMaid)        items.push("犬は召使がいないと、ほかのみんなを噛み殺します。");
+  if (lvl.moveLimit) items.push(`${lvl.moveLimit}手以内にクリアしてください。`);
+  rulesEl.innerHTML = "<ol>" + items.map((t) => `<li>${t}</li>`).join("") + "</ol>";
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════ */
 function render() {
-  if (state.disembarkTarget && !state.selected.includes(state.disembarkTarget)) {
-    state.disembarkTarget = null;
+  if (gameState.disembarkTarget && !gameState.selected.includes(gameState.disembarkTarget)) {
+    gameState.disembarkTarget = null;
   }
 
   el.leftPeople.innerHTML = "";
   el.rightPeople.innerHTML = "";
 
   people.forEach((person) => {
-    if (state.selected.includes(person.id)) {
-      return;
-    }
-
+    if (gameState.selected.includes(person.id)) return;
     const button = createPersonButton(person);
-    if (person.side !== state.boatSide || state.isMoving) {
-      button.disabled = true;
-    }
-
-    if (person.side === "left") {
-      el.leftPeople.append(button);
-    } else {
-      el.rightPeople.append(button);
-    }
+    if (person.side !== gameState.boatSide || gameState.isMoving) button.disabled = true;
+    (person.side === "left" ? el.leftPeople : el.rightPeople).append(button);
   });
 
   renderBoatPassengers();
@@ -203,12 +405,7 @@ function createPersonButton(person) {
   button.type = "button";
   button.className = "person";
   button.dataset.id = person.id;
-  button.style.setProperty("--avatar-bg", person.color);
-  button.style.setProperty("--avatar-line", person.line);
-  button.style.setProperty("--avatar-accent", person.accent);
-  button.style.setProperty("--avatar-skin", person.skin);
-  button.style.setProperty("--avatar-hair", person.hair);
-  button.style.setProperty("--avatar-outfit", person.outfit);
+  setAvatarVars(button, person);
   button.setAttribute("aria-label", `${person.name}${person.risk || ""}を選択`);
 
   const badge = person.driver
@@ -223,459 +420,461 @@ function createPersonButton(person) {
     </span>
     ${badge}
   `;
-
   button.addEventListener("click", () => togglePerson(person.id));
   return button;
 }
 
-function renderBoatPassengers() {
-  const onboardProblem = findBoatPassengerProblem(state.selected.map(getPerson));
+function setAvatarVars(el, person) {
+  el.style.setProperty("--avatar-bg",     person.color);
+  el.style.setProperty("--avatar-line",   person.line);
+  el.style.setProperty("--avatar-accent", person.accent);
+  el.style.setProperty("--avatar-skin",   person.skin);
+  el.style.setProperty("--avatar-hair",   person.hair);
+  el.style.setProperty("--avatar-outfit", person.outfit);
+}
 
-  el.boatButton.dataset.side = state.boatSide;
-  el.boatButton.dataset.direction = opposite(state.boatSide);
-  el.boatButton.classList.toggle("moving", state.isMoving);
+function renderBoatPassengers() {
+  const onboardProblem = findBoatPassengerProblem(gameState.selected.map(getPerson));
+
+  el.boatButton.dataset.side = gameState.boatSide;
+  el.boatButton.classList.toggle("moving", gameState.isMoving);
   el.boatButton.classList.toggle("conflict", Boolean(onboardProblem));
   el.board.classList.toggle("has-boat-conflict", Boolean(onboardProblem));
   el.boatPassengers.innerHTML = "";
 
-  state.selected.forEach((id) => {
+  gameState.selected.forEach((id) => {
     const person = getPerson(id);
     const mini = document.createElement("button");
     mini.type = "button";
     mini.className = "boat-mini";
     mini.dataset.id = person.id;
-    mini.setAttribute("aria-label", `${person.boatLabel}を船から降ろす対象にする`);
-    mini.classList.toggle("selected", state.disembarkTarget === person.id);
+    mini.setAttribute("aria-label", `${person.boatLabel}を降ろす`);
+    mini.classList.toggle("selected", gameState.disembarkTarget === person.id);
     mini.classList.toggle("danger", onboardProblem?.ids.includes(person.id));
-    mini.style.setProperty("--avatar-bg", person.color);
-    mini.style.setProperty("--avatar-line", person.line);
-    mini.style.setProperty("--avatar-accent", person.accent);
-    mini.style.setProperty("--avatar-skin", person.skin);
-    mini.style.setProperty("--avatar-hair", person.hair);
-    mini.style.setProperty("--avatar-outfit", person.outfit);
-    mini.innerHTML = `
-      <span class="boat-mini-label">${person.boatLabel}</span>
-      <span class="boat-mini-icon">${personIcon(person)}</span>
-    `;
-    mini.addEventListener("click", (event) => {
-      event.stopPropagation();
-      toggleDisembarkTarget(person.id);
-    });
+    setAvatarVars(mini, person);
+    mini.innerHTML = `<span class="boat-mini-label">${person.boatLabel}</span><span class="boat-mini-icon">${personIcon(person)}</span>`;
+    mini.addEventListener("click", (e) => { e.stopPropagation(); toggleDisembarkTarget(person.id); });
     el.boatPassengers.append(mini);
   });
 }
 
 function updateHud() {
-  const leftTotal = people.filter((person) => person.side === "left").length;
-  const rightTotal = people.filter((person) => person.side === "right").length;
+  const leftTotal  = people.filter((p) => p.side === "left").length;
+  const rightTotal = people.filter((p) => p.side === "right").length;
+  const lim = currentLevel?.moveLimit;
 
-  el.moveCount.textContent = state.moveCount;
-  el.boatSideText.textContent = sideLabel[state.boatSide];
-  el.selectionCount.textContent = `${state.selected.length} / 2`;
-  el.leftCount.textContent = `${leftTotal}人`;
-  el.rightCount.textContent = `${rightTotal}人`;
-  el.crossButton.disabled = state.selected.length === 0 || state.isMoving;
-  el.crossButton.classList.toggle("returning", state.boatSide === "right");
-  el.clearButton.disabled = !state.disembarkTarget || state.isMoving;
+  el.moveCount.textContent    = gameState.moveCount;
+  el.boatSideText.textContent = sideLabel[gameState.boatSide];
+  el.selectionCount.textContent = `${gameState.selected.length} / ${currentLevel?.boatCapacity ?? 2}`;
+  el.leftCount.textContent    = `${leftTotal}人`;
+  el.rightCount.textContent   = `${rightTotal}人`;
+  el.crossButton.disabled     = gameState.selected.length === 0 || gameState.isMoving;
+  el.crossButton.classList.toggle("returning", gameState.boatSide === "right");
+  el.clearButton.disabled     = !gameState.disembarkTarget || gameState.isMoving;
+
+  if (el.moveLimitBadge && lim) {
+    const remaining = lim - gameState.moveCount;
+    el.moveLimitBadge.textContent = `残り ${remaining} 手`;
+    el.moveLimitBadge.classList.toggle("warn", remaining <= 3);
+  }
 }
 
+/* ═══════════════════════════════════════════════
+   INTERACTION
+   ═══════════════════════════════════════════════ */
 function togglePerson(id) {
-  if (state.isMoving) {
-    return;
-  }
-
+  if (gameState.isMoving) return;
   const person = getPerson(id);
-  if (person.side !== state.boatSide) {
-    showToast("舟がある岸の人だけを乗せられます。", "warn");
-    return;
+  if (person.side !== gameState.boatSide) { showToast("舟がある岸の人だけを乗せられます。", "warn"); return; }
+  if (gameState.selected.includes(id)) {
+    gameState.selected = gameState.selected.filter((s) => s !== id);
+    if (gameState.disembarkTarget === id) gameState.disembarkTarget = null;
+    render(); return;
   }
-
-  if (state.selected.includes(id)) {
-    state.selected = state.selected.filter((selectedId) => selectedId !== id);
-    if (state.disembarkTarget === id) {
-      state.disembarkTarget = null;
-    }
-    render();
-    return;
-  }
-
-  if (state.selected.length >= 2) {
-    showToast("舟に乗れるのは2人までです。", "warn");
-    return;
-  }
-
-  state.selected.push(id);
-  state.disembarkTarget = null;
+  const cap = currentLevel?.boatCapacity ?? 2;
+  if (gameState.selected.length >= cap) { showToast(`舟に乗れるのは${cap}人までです。`, "warn"); return; }
+  gameState.selected.push(id);
+  gameState.disembarkTarget = null;
   render();
 }
 
 function toggleDisembarkTarget(id) {
-  if (state.isMoving) {
-    return;
-  }
-
-  state.disembarkTarget = state.disembarkTarget === id ? null : id;
+  if (gameState.isMoving) return;
+  gameState.disembarkTarget = gameState.disembarkTarget === id ? null : id;
   render();
 }
 
 function disembarkSelectedPassenger() {
-  if (state.isMoving || !state.disembarkTarget) {
-    return;
-  }
-
-  state.selected = state.selected.filter((id) => id !== state.disembarkTarget);
-  state.disembarkTarget = null;
+  if (gameState.isMoving || !gameState.disembarkTarget) return;
+  gameState.selected = gameState.selected.filter((id) => id !== gameState.disembarkTarget);
+  gameState.disembarkTarget = null;
   render();
 }
 
 function tryCross() {
-  if (state.isMoving) {
-    return;
-  }
-
+  if (gameState.isMoving) return;
   const validation = validateMove();
-  if (!validation.ok) {
-    showInvalid(validation);
-    return;
-  }
-
+  if (!validation.ok) { showInvalid(validation); return; }
   crossRiver();
 }
 
+/* ═══════════════════════════════════════════════
+   VALIDATION
+   ═══════════════════════════════════════════════ */
 function validateMove() {
-  if (state.selected.length === 0) {
-    return {
-      ok: false,
-      message: "舟に乗る人を選んでください。",
-      conflictIds: [],
-    };
-  }
+  if (gameState.selected.length === 0) return { ok: false, message: "舟に乗る人を選んでください。", conflictIds: [] };
 
-  const passengers = state.selected.map(getPerson);
+  const passengers = gameState.selected.map(getPerson);
   const boatProblem = findBoatPassengerProblem(passengers);
-  if (boatProblem) {
-    return {
-      ok: false,
-      message: boatProblem.message,
-      conflictIds: boatProblem.ids,
-    };
-  }
+  if (boatProblem) return { ok: false, message: boatProblem.message, conflictIds: boatProblem.ids };
 
-  const hasDriver = passengers.some((person) => person.driver);
-  if (!hasDriver) {
-    return {
-      ok: false,
-      message: "この二人では舟をこげません。父・母・召使いの誰かを乗せてください。",
-      conflictIds: state.selected,
-    };
-  }
+  if (!passengers.some((p) => p.driver))
+    return { ok: false, message: "この二人では舟をこげません。父・母・召使の誰かを乗せてください。", conflictIds: gameState.selected };
 
-  const nextSide = opposite(state.boatSide);
-  const snapshot = people.map((person) => ({
-    ...person,
-    side: state.selected.includes(person.id) ? nextSide : person.side,
-  }));
+  // Move limit check
+  if (currentLevel?.moveLimit && gameState.moveCount >= currentLevel.moveLimit)
+    return { ok: false, message: `手数制限（${currentLevel.moveLimit}手）を超えました。リセットして最初からやり直してください。`, conflictIds: [] };
 
+  const nextSide = opposite(gameState.boatSide);
+  const snapshot = people.map((p) => ({ ...p, side: gameState.selected.includes(p.id) ? nextSide : p.side }));
   const safetyProblem = findSafetyProblem(snapshot);
-  if (safetyProblem) {
-    return {
-      ok: false,
-      message: safetyProblem.message,
-      conflictIds: safetyProblem.ids,
-    };
-  }
+  if (safetyProblem) return { ok: false, message: safetyProblem.message, conflictIds: safetyProblem.ids };
 
   return { ok: true };
 }
 
+function cons() { return currentLevel?.constraints ?? { fatherDaughter: true, motherSon: true, dogMaid: true }; }
+
 function findBoatPassengerProblem(passengers) {
-  if (passengers.length < 2) {
-    return null;
-  }
-
-  const types = new Set(passengers.map((person) => person.type));
-  const ids = new Set(passengers.map((person) => person.id));
-
-  if (types.has("father") && types.has("daughter") && !types.has("mother")) {
-    return {
-      message: "父と娘だけでは一緒に渡れません。父が娘を怒ってしまいます。",
-      ids: passengers
-        .filter((person) => person.type === "father" || person.type === "daughter")
-        .map((person) => person.id),
-    };
-  }
-
-  if (types.has("mother") && types.has("son") && !types.has("father")) {
-    return {
-      message: "母と息子だけでは一緒に渡れません。母が息子を怒ってしまいます。",
-      ids: passengers
-        .filter((person) => person.type === "mother" || person.type === "son")
-        .map((person) => person.id),
-    };
-  }
-
-  if (ids.has("dog") && !ids.has("maid") && passengers.some((person) => person.type !== "dog")) {
-    return {
-      message: "犬は召使いなしでは、家族の誰とも一緒に船に乗れません。",
-      ids: passengers.map((person) => person.id),
-    };
-  }
-
+  if (passengers.length < 2) return null;
+  const c = cons();
+  const types = new Set(passengers.map((p) => p.type));
+  const ids   = new Set(passengers.map((p) => p.id));
+  if (c.fatherDaughter && types.has("father") && types.has("daughter") && !types.has("mother"))
+    return { message: "父と娘だけでは渡れません。父が娘を怒ります！", ids: passengers.filter((p) => p.type === "father" || p.type === "daughter").map((p) => p.id) };
+  if (c.motherSon && types.has("mother") && types.has("son") && !types.has("father"))
+    return { message: "母と息子だけでは渡れません。母が息子を怒ります！", ids: passengers.filter((p) => p.type === "mother" || p.type === "son").map((p) => p.id) };
+  if (c.dogMaid && ids.has("dog") && !ids.has("maid") && passengers.some((p) => p.type !== "dog"))
+    return { message: "犬は召使なしでは家族と船に乗れません！", ids: passengers.map((p) => p.id) };
   return null;
 }
 
 function findSafetyProblem(snapshot) {
+  const c = cons();
   for (const side of ["left", "right"]) {
-    const group = snapshot.filter((person) => person.side === side);
-    const ids = new Set(group.map((person) => person.id));
-    const types = new Set(group.map((person) => person.type));
-
-    if (types.has("father") && types.has("daughter") && !types.has("mother")) {
-      return {
-        message: `${sideLabel[side]}で父と娘が母なしになります。父が娘を怒ってしまいます。`,
-        ids: group
-          .filter((person) => person.type === "father" || person.type === "daughter")
-          .map((person) => person.id),
-      };
-    }
-
-    if (types.has("mother") && types.has("son") && !types.has("father")) {
-      return {
-        message: `${sideLabel[side]}で母と息子が父なしになります。母が息子を怒ってしまいます。`,
-        ids: group
-          .filter((person) => person.type === "mother" || person.type === "son")
-          .map((person) => person.id),
-      };
-    }
-
-    if (ids.has("dog") && !ids.has("maid") && group.some((person) => person.type !== "dog")) {
-      return {
-        message: `${sideLabel[side]}で犬が召使いなしになります。家族の誰とも一緒に過ごせません。`,
-        ids: group.filter((person) => person.id === "dog" || person.type !== "maid").map((person) => person.id),
-      };
-    }
+    const group = snapshot.filter((p) => p.side === side);
+    const types = new Set(group.map((p) => p.type));
+    const ids   = new Set(group.map((p) => p.id));
+    if (c.fatherDaughter && types.has("father") && types.has("daughter") && !types.has("mother"))
+      return { message: `${sideLabel[side]}で父と娘が母なしになります！`, ids: group.filter((p) => p.type === "father" || p.type === "daughter").map((p) => p.id) };
+    if (c.motherSon && types.has("mother") && types.has("son") && !types.has("father"))
+      return { message: `${sideLabel[side]}で母と息子が父なしになります！`, ids: group.filter((p) => p.type === "mother" || p.type === "son").map((p) => p.id) };
+    if (c.dogMaid && ids.has("dog") && !ids.has("maid") && group.some((p) => p.type !== "dog"))
+      return { message: `${sideLabel[side]}で犬が召使なしになります！みんなが噛まれる！`, ids: group.map((p) => p.id) };
   }
-
   return null;
 }
 
-function showInvalid(validation) {
-  markConflict(validation.conflictIds);
-  markBoatConflict();
-  showToast(validation.message, "warn");
-}
+function showInvalid(v) { markConflict(v.conflictIds); markBoatConflict(); showToast(v.message, "warn"); }
 
 function markConflict(ids) {
   ids.forEach((id) => {
-    const button = document.querySelector(`.person[data-id="${id}"]`);
-    if (!button) {
-      const mini = document.querySelector(`.boat-mini[data-id="${id}"]`);
-      if (!mini) {
-        return;
-      }
-
-      mini.classList.remove("danger");
-      window.requestAnimationFrame(() => mini.classList.add("danger"));
-      return;
-    }
-
-    button.classList.remove("danger");
-    window.requestAnimationFrame(() => button.classList.add("danger"));
+    const btn = document.querySelector(`.person[data-id="${id}"]`) || document.querySelector(`.boat-mini[data-id="${id}"]`);
+    if (!btn) return;
+    btn.classList.remove("danger");
+    requestAnimationFrame(() => btn.classList.add("danger"));
   });
 }
 
 function markBoatConflict() {
-  if (state.selected.length === 0) {
-    return;
-  }
-
+  if (!gameState.selected.length) return;
   el.boatButton.classList.remove("danger");
-  window.requestAnimationFrame(() => el.boatButton.classList.add("danger"));
-  window.setTimeout(() => el.boatButton.classList.remove("danger"), 520);
+  requestAnimationFrame(() => el.boatButton.classList.add("danger"));
+  setTimeout(() => el.boatButton.classList.remove("danger"), 520);
 }
 
+/* ═══════════════════════════════════════════════
+   CROSSING
+   ═══════════════════════════════════════════════ */
 function crossRiver() {
-  state.isMoving = true;
+  gameState.isMoving = true;
   render();
 
-  const nextSide = opposite(state.boatSide);
+  const nextSide = opposite(gameState.boatSide);
   el.boatButton.dataset.side = nextSide;
-  el.boatButton.dataset.direction = nextSide;
 
-  window.setTimeout(() => {
-    state.selected.forEach((id) => {
-      getPerson(id).side = nextSide;
-    });
-
-    state.boatSide = nextSide;
-    state.selected = [];
-    state.disembarkTarget = null;
-    state.moveCount += 1;
-    state.isMoving = false;
+  setTimeout(() => {
+    gameState.selected.forEach((id) => { getPerson(id).side = nextSide; });
+    gameState.boatSide = nextSide;
+    gameState.selected = [];
+    gameState.disembarkTarget = null;
+    gameState.moveCount += 1;
+    gameState.isMoving = false;
     render();
 
-    if (people.every((person) => person.side === "right")) {
-      showWin();
-    }
+    if (people.every((p) => p.side === "right")) showWin();
   }, 650);
 }
 
+/* ═══════════════════════════════════════════════
+   WIN FLOW
+   ═══════════════════════════════════════════════ */
 function showWin() {
-  el.finalMoves.textContent = state.moveCount;
-  showToast("全員が右岸に到着しました。", "good");
+  clearInterval(gameState.timerInterval);
+  const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+  gameState.elapsedSeconds = elapsed;
 
-  if (typeof el.winDialog.showModal === "function") {
-    el.winDialog.showModal();
-  }
+  // Record local best
+  markCleared(currentLevel.id, gameState.moveCount, elapsed);
+
+  if (el.winTitle)   el.winTitle.textContent   = `ステージ ${currentLevel.id}「${currentLevel.title}」クリア！`;
+  if (el.finalMoves) el.finalMoves.textContent = gameState.moveCount;
+  if (el.finalTime)  el.finalTime.textContent  = formatTime(elapsed);
+
+  // Show/hide next level button
+  const nextLvl = LEVELS.find((l) => l.id === currentLevel.id + 1);
+  if (el.nextLevelBtn) el.nextLevelBtn.hidden = !nextLvl;
+
+  showToast("全員が右岸に到着しました！", "good");
+  if (el.winDialog?.showModal) el.winDialog.showModal();
 }
 
+// Score submission
+el.submitScore?.addEventListener("click", async () => {
+  const name = (el.nameInput?.value || "").trim() || "匿名";
+  await reportClear(currentLevel.id, name, gameState.moveCount, gameState.elapsedSeconds);
+  el.submitScore.disabled = true;
+  el.submitScore.textContent = "送信済み ✓";
+  showToast("スコアを記録しました！", "good");
+});
+
+el.nextLevelBtn?.addEventListener("click", () => {
+  el.winDialog?.close();
+  const nextLvl = LEVELS.find((l) => l.id === currentLevel.id + 1);
+  if (nextLvl) openIntroScreen(nextLvl);
+});
+
+el.playAgainButton?.addEventListener("click", () => {
+  el.winDialog?.close();
+  resetGame();
+});
+
+el.backFromWin?.addEventListener("click", () => {
+  el.winDialog?.close();
+  initSelectScreen();
+});
+
+/* ═══════════════════════════════════════════════
+   RESET / BACK
+   ═══════════════════════════════════════════════ */
 function resetGame() {
-  people.forEach((person) => {
-    person.side = "left";
+  clearInterval(gameState.timerInterval);
+  people.forEach((p) => { p.side = "left"; });
+  Object.assign(gameState, {
+    boatSide: "left", selected: [], disembarkTarget: null,
+    moveCount: 0, isMoving: false, elapsedSeconds: 0, startTime: Date.now(),
   });
-
-  state.boatSide = "left";
-  state.selected = [];
-  state.disembarkTarget = null;
-  state.moveCount = 0;
-  state.isMoving = false;
-
-  if (el.winDialog.open) {
-    el.winDialog.close();
+  if (el.submitScore) { el.submitScore.disabled = false; el.submitScore.textContent = "記録する"; }
+  if (el.nameInput) el.nameInput.value = "";
+  if (el.moveLimitBadge && currentLevel?.moveLimit) {
+    el.moveLimitBadge.textContent = `残り ${currentLevel.moveLimit} 手`;
+    el.moveLimitBadge.classList.remove("warn");
+    el.moveLimitBadge.hidden = false;
   }
-
+  gameState.timerInterval = setInterval(tickTimer, 1000);
   render();
 }
 
-function showToast(message, tone) {
-  window.clearTimeout(state.toastTimer);
-  el.toast.textContent = message;
+el.resetButton?.addEventListener("click", resetGame);
+el.backToSelect?.addEventListener("click", () => {
+  clearInterval(gameState.timerInterval);
+  initSelectScreen();
+});
+
+/* ═══════════════════════════════════════════════
+   GAME CONTROLS
+   ═══════════════════════════════════════════════ */
+el.crossButton?.addEventListener("click", tryCross);
+el.boatButton?.addEventListener("click", tryCross);
+el.boatButton?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tryCross(); }
+});
+el.clearButton?.addEventListener("click", disembarkSelectedPassenger);
+el.ruleToggle?.addEventListener("click", () => {
+  const open = el.rules.classList.toggle("open");
+  el.ruleToggle.setAttribute("aria-expanded", String(open));
+});
+
+/* ═══════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════ */
+function showToast(msg, tone) {
+  clearTimeout(gameState.toastTimer);
+  el.toast.textContent = msg;
   el.toast.classList.toggle("good", tone === "good");
   el.toast.classList.add("show");
-  state.toastTimer = window.setTimeout(() => {
-    el.toast.classList.remove("show");
-  }, 2800);
+  gameState.toastTimer = setTimeout(() => el.toast.classList.remove("show"), 2800);
 }
 
-function getPerson(id) {
-  return people.find((person) => person.id === id);
+/* ═══════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════ */
+function getPerson(id) { return people.find((p) => p.id === id); }
+function opposite(side) { return side === "left" ? "right" : "left"; }
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m > 0 ? `${m}分${s.toString().padStart(2, "0")}秒` : `${s}秒`;
 }
 
-function opposite(side) {
-  return side === "left" ? "right" : "left";
-}
-
+/* ═══════════════════════════════════════════════
+   SVG ICONS  (chibi characters)
+   ═══════════════════════════════════════════════ */
 function personIcon(person) {
   const icons = {
     father: `
-      <path class="outfit" d="M14 58c2.7-13.1 9.1-19.1 18-19.1S47.3 44.9 50 58z" />
-      <path class="accent" d="M29 41h6l-1.5 17h-3z" />
-      <circle class="skin" cx="32" cy="24" r="12.2" />
-      <path class="hair" d="M19.9 22.9c1.1-9 7.7-13.4 15.6-11.7 5.3 1.2 8.4 5.1 8.8 10.7-5.9-4.2-14.5-4.5-24.4 1z" />
-      <circle class="stroke" cx="27" cy="25" r="3.2" stroke-width="2.6" />
-      <circle class="stroke" cx="37" cy="25" r="3.2" stroke-width="2.6" />
-      <path class="stroke" d="M30.2 25h3.6M28.5 32.2c2.2 1.7 5.1 1.7 7.2 0" stroke-width="2.4" />
-      <path class="white" d="M24 44.2 32 40l8 4.2-8 4.3z" />
-    `,
+      <path class="outfit" d="M11 64c2-13 9-20 21-20s19 7 21 20z"/>
+      <path class="accent" d="M28 47 32 44l4 3-1.5 8h-5z"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="26" r="16"/>
+      <path class="hair" d="M16 22c1-9.5 7.5-14.5 16-14.5s15 5 16 14.5c-2.5-5.5-8-9-16-9s-13.5 3.5-16 9z"/>
+      <circle class="dark" cx="26.5" cy="27" r="4"/>
+      <circle class="dark" cx="37.5" cy="27" r="4"/>
+      <circle class="white" cx="28.1" cy="25.2" r="1.7"/>
+      <circle class="white" cx="39.1" cy="25.2" r="1.7"/>
+      <ellipse cx="20" cy="33" rx="5.5" ry="3.2" fill="#ffb8c8" opacity="0.6"/>
+      <ellipse cx="44" cy="33" rx="5.5" ry="3.2" fill="#ffb8c8" opacity="0.6"/>
+      <path class="stroke" stroke-width="2.3" d="M26 35.5c3 3 13 3 12 0"/>`,
     mother: `
-      <path class="outfit" d="M13.5 58c3-12.8 9.2-18.7 18.5-18.7S47.5 45.2 50.5 58z" />
-      <path class="hair" d="M17.8 28.3c-2.1-9.2 3.5-17.2 13.9-17.2 10.3 0 16.7 8.8 14 18.1-3.7-7.6-10.6-11.1-19.4-8.9-3.8 1-6.4 3.8-8.5 8z" />
-      <circle class="skin" cx="32" cy="25" r="11.4" />
-      <path class="accent" d="M20.7 18.6c4.2-5.2 14.7-7.1 21.5 2.5-8.4-3.7-15.8-3.2-21.5-2.5z" />
-      <circle class="accent" cx="20.2" cy="31" r="2.4" />
-      <circle class="accent" cx="43.8" cy="31" r="2.4" />
-      <path class="stroke" d="M26.5 25.5h.1M37.5 25.5h.1M28.5 32.5c2.1 1.8 5.1 1.8 7 0" stroke-width="3" />
-      <path class="white" d="M27.4 41.5 32 46l4.6-4.5 5.8 6.9H21.6z" />
-    `,
+      <path class="outfit" d="M11.5 64c2.5-13 9-20 20.5-20s18 7 20.5 20z"/>
+      <path class="accent" d="M20 52c3-5 6.5-8 12-8s9 3 12 8z" opacity="0.8"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="26" r="15.5"/>
+      <path class="hair" d="M17 28c-1.5-10 5-17 15-17s16.5 7 15 17c-4-7.5-11-11.5-15-11.5s-11 4-15 11.5z"/>
+      <path class="hair" d="M17 28c0 7 2.5 10.5 4 5-1.5-5.5-.5-11 0-12zM47 28c0 7-2.5 10.5-4 5 1.5-5.5.5-11 0-12z"/>
+      <circle class="accent" cx="16" cy="33.5" r="3.2"/>
+      <circle class="accent" cx="48" cy="33.5" r="3.2"/>
+      <circle class="dark" cx="26.5" cy="27" r="3.8"/>
+      <circle class="dark" cx="37.5" cy="27" r="3.8"/>
+      <circle class="white" cx="28" cy="25.2" r="1.6"/>
+      <circle class="white" cx="39" cy="25.2" r="1.6"/>
+      <ellipse cx="20" cy="32.5" rx="5.5" ry="3" fill="#ffb8c8" opacity="0.62"/>
+      <ellipse cx="44" cy="32.5" rx="5.5" ry="3" fill="#ffb8c8" opacity="0.62"/>
+      <path class="stroke" stroke-width="2.2" d="M26.5 35c3 2.5 11 2.5 11 0"/>`,
     "son-cap": `
-      <path class="outfit" d="M13.8 58c2.6-12.1 8.9-17.9 18.2-17.9S47.6 45.9 50.2 58z" />
-      <circle class="skin" cx="32" cy="26" r="10.8" />
-      <path class="hair" d="M21.1 24c.5-6.3 4.9-10.5 11.6-10.5 5.5 0 9.2 3.2 10.3 8.9-4-2.4-10.7-3.8-21.9 1.6z" />
-      <path class="accent" d="M20.2 18.8c2.9-5.5 9-7.4 15.8-5.5 3.5 1 6 3.2 7.7 6.4-8.7-2.2-16.6-2.4-23.5-.9z" />
-      <path class="accent" d="M41.3 19.4h7.2c-1.8 2.4-4.7 3.6-8.7 3.4z" />
-      <path class="stroke" d="M27 27h.1M37 27h.1M28 33.1c2.5 2 5.4 2 8 0" stroke-width="3" />
-      <path class="white" d="M24.2 43.5h15.6l-2.2 6.1H26.4z" />
-    `,
+      <path class="outfit" d="M11.5 64c2-13 8.5-20 20.5-20s18.5 7 20.5 20z"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="26.5" r="15.5"/>
+      <path class="hair" d="M17 23c.5-8.5 6.5-14 15-14s14.5 5.5 15 14c-2.5-5-7.5-8.5-15-8.5S19.5 18 17 23z"/>
+      <path class="accent" d="M20.5 21c3-5.5 8.5-8 11.5-8s8.5 2.5 11.5 8c-7.5-3-16-3-23 0z"/>
+      <path class="accent" d="M41.5 21.8 48.5 21.8c-1.5 2.5-4 3.8-7.5 3.8z"/>
+      <circle class="dark" cx="26.5" cy="27.5" r="4"/>
+      <circle class="dark" cx="37.5" cy="27.5" r="4"/>
+      <circle class="white" cx="28" cy="25.7" r="1.6"/>
+      <circle class="white" cx="39" cy="25.7" r="1.6"/>
+      <ellipse cx="20" cy="33.5" rx="5.5" ry="3" fill="#ffb8c8" opacity="0.55"/>
+      <ellipse cx="44" cy="33.5" rx="5.5" ry="3" fill="#ffb8c8" opacity="0.55"/>
+      <path class="stroke" stroke-width="2.3" d="M26.5 36c3 2.5 11 2.5 11 0"/>`,
     "son-headphones": `
-      <path class="outfit" d="M13.5 58c2.8-12.3 9.2-18.1 18.5-18.1S47.7 45.7 50.5 58z" />
-      <circle class="skin" cx="32" cy="26" r="10.8" />
-      <path class="hair" d="M21.2 23.5c1.2-7 6.7-10.8 13.8-9.5 4.9.9 7.7 4.4 8.1 9.3-7.3-3.9-14.7-3.8-21.9.2z" />
-      <path class="stroke" d="M21 28v-3.5c0-6.1 4.2-10.7 11-10.7s11 4.6 11 10.7V28" stroke-width="2.8" />
-      <rect class="accent" x="17.5" y="25.5" width="5.9" height="10.2" rx="2.3" />
-      <rect class="accent" x="40.6" y="25.5" width="5.9" height="10.2" rx="2.3" />
-      <path class="stroke" d="M27 27h.1M37 27h.1M28.5 33.2c2.2 1.6 4.8 1.6 7 0" stroke-width="3" />
-      <path class="white" d="M23.5 43.7 32 40l8.5 3.7L32 48.5z" />
-    `,
+      <path class="outfit" d="M11.5 64c2-13 8.5-20 20.5-20s18.5 7 20.5 20z"/>
+      <rect class="accent" x="17" y="28.5" width="6.5" height="10.5" rx="2.8"/>
+      <rect class="accent" x="40.5" y="28.5" width="6.5" height="10.5" rx="2.8"/>
+      <path class="stroke" stroke-width="2.8" d="M21 29v-4c0-6.5 4.5-11 11-11s11 4.5 11 11v4"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="26.5" r="15.5"/>
+      <path class="hair" d="M17 23c.5-8 6-13.5 15-13.5S46 18 46 23c-2.5-5-7-8-15-8S19.5 18 17 23z"/>
+      <circle class="dark" cx="26.5" cy="27.5" r="3.8"/>
+      <circle class="dark" cx="37.5" cy="27.5" r="3.8"/>
+      <circle class="white" cx="28" cy="25.8" r="1.5"/>
+      <circle class="white" cx="39" cy="25.8" r="1.5"/>
+      <ellipse cx="20" cy="33.5" rx="5" ry="3" fill="#ffb8c8" opacity="0.55"/>
+      <ellipse cx="44" cy="33.5" rx="5" ry="3" fill="#ffb8c8" opacity="0.55"/>
+      <path class="stroke" stroke-width="2.3" d="M26.5 36c3 2.5 11 2.5 11 0"/>`,
     "daughter-bow": `
-      <path class="outfit" d="M13.7 58c2.8-12.2 9.1-18.1 18.3-18.1S47.5 45.8 50.3 58z" />
-      <path class="hair" d="M19.2 29.5c-2.2-9.4 3.5-16.2 12.8-16.2s15 6.8 12.8 16.2c-4.6-6.5-9.9-8.7-12.8-8.7s-8.2 2.2-12.8 8.7z" />
-      <circle class="skin" cx="32" cy="27" r="10.7" />
-      <path class="accent" d="M25.2 12.6 32 17l6.8-4.4v9L32 17l-6.8 4.6z" />
-      <circle class="hair" cx="18.7" cy="32" r="4.2" />
-      <circle class="hair" cx="45.3" cy="32" r="4.2" />
-      <path class="stroke" d="M27.2 27.6h.1M36.8 27.6h.1M28.2 33.9c2.3 1.9 5.3 1.9 7.6 0" stroke-width="3" />
-      <path class="white" d="M25.2 43.5 32 39.8l6.8 3.7-6.8 5z" />
-    `,
+      <path class="outfit" d="M12 64c2-13 8.5-20 20-20s18 7 20 20z"/>
+      <path class="hair" d="M18.5 28.5c-1.5-10 4-16.5 13.5-16.5s15 6.5 13.5 16.5c-4-7-9.5-11-13.5-11s-9.5 4-13.5 11z"/>
+      <path class="hair" d="M18.5 28.5c0 7.5 2.5 10.5 4 5.5-1.5-5-.5-11 0-12.5zM45.5 28.5c0 7.5-2.5 10.5-4 5.5 1.5-5 .5-11 0-12.5z"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="27" r="15.5"/>
+      <path class="accent" d="M27.5 11.5 32 17l4.5-5.5v9L32 16.5l-4.5 6z"/>
+      <circle class="dark" cx="26.5" cy="27.5" r="4"/>
+      <circle class="dark" cx="37.5" cy="27.5" r="4"/>
+      <circle class="white" cx="28.1" cy="25.7" r="1.7"/>
+      <circle class="white" cx="39.1" cy="25.7" r="1.7"/>
+      <ellipse cx="20" cy="33" rx="5.5" ry="3.2" fill="#ffb8c8" opacity="0.62"/>
+      <ellipse cx="44" cy="33" rx="5.5" ry="3.2" fill="#ffb8c8" opacity="0.62"/>
+      <path class="stroke" stroke-width="2.3" d="M26.5 36c3 2.5 11.5 2.5 11 0"/>`,
     "daughter-pigtails": `
-      <path class="outfit" d="M13.6 58c2.8-12.2 9.1-18 18.4-18s15.6 5.8 18.4 18z" />
-      <path class="hair" d="M20.6 28.8c-1.9-8.6 3.2-15.2 11.4-15.2s13.3 6.6 11.4 15.2c-5.7-6-17.1-6-22.8 0z" />
-      <circle class="skin" cx="32" cy="27" r="10.5" />
-      <circle class="hair" cx="19" cy="32.2" r="4.8" />
-      <circle class="hair" cx="45" cy="32.2" r="4.8" />
-      <path class="accent" d="M18.2 35.1 14 38.3l.4-5.3zM45.8 35.1l4.2 3.2-.4-5.3z" />
-      <path class="stroke" d="M27.2 27.5h.1M36.8 27.5h.1M28.4 33.8c2.1 1.7 5.1 1.7 7.2 0" stroke-width="3" />
-      <path class="white" d="M24.5 43.7h15l-2.6 6.3h-9.8z" />
-    `,
+      <path class="outfit" d="M12 64c2-13 8.5-20 20-20s18 7 20 20z"/>
+      <path class="hair" d="M19.5 28c-1-9.5 5-15 12.5-15s13.5 5.5 12.5 15c-5-6.5-15-6.5-25 0z"/>
+      <circle class="hair" cx="17" cy="33" r="6"/>
+      <circle class="hair" cx="47" cy="33" r="6"/>
+      <path class="accent" d="M14.5 37.5l-5 4 .5-7zM49.5 37.5l5 4-.5-7z"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="27" r="15.5"/>
+      <circle class="dark" cx="26.5" cy="27.5" r="4"/>
+      <circle class="dark" cx="37.5" cy="27.5" r="4"/>
+      <circle class="white" cx="28.1" cy="25.7" r="1.7"/>
+      <circle class="white" cx="39.1" cy="25.7" r="1.7"/>
+      <ellipse cx="20" cy="33" rx="5.5" ry="3.2" fill="#ffb8c8" opacity="0.62"/>
+      <ellipse cx="44" cy="33" rx="5.5" ry="3.2" fill="#ffb8c8" opacity="0.62"/>
+      <path class="stroke" stroke-width="2.3" d="M26.5 36c3 2.5 11.5 2.5 11 0"/>`,
     maid: `
-      <path class="outfit" d="M12.8 58c3-13 9.5-19 19.2-19s16.2 6 19.2 19z" />
-      <path class="hair" d="M19.2 28.7c-1.7-9.1 3.6-15.7 12.8-15.7s14.5 6.6 12.8 15.7c-4.9-5.7-20.7-5.7-25.6 0z" />
-      <path class="white" d="M19.5 17.7c1.7-5 6.5-8.2 12.5-8.2s10.8 3.2 12.5 8.2c-8.5-2.7-16.5-2.7-25 0z" />
-      <circle class="skin" cx="32" cy="27" r="10.7" />
-      <path class="white" d="M24.2 42.8 32 39l7.8 3.8-2.9 11.4h-9.8z" />
-      <path class="accent" d="M22 46.4h20l1.8 11.6H20.2z" opacity=".65" />
-      <path class="stroke" d="M27 27.5h.1M37 27.5h.1M28.8 33.5c2 1.5 4.4 1.5 6.4 0" stroke-width="3" />
-    `,
+      <path class="outfit" d="M11 64c2.5-13.5 9-21 21-21s18.5 7.5 21 21z"/>
+      <path class="white" d="M24 47.5 32 43l8 4.5-3 12h-10z"/>
+      <path class="accent" d="M21.5 52.5h21l2 11.5h-25z" opacity="0.72"/>
+      <rect class="skin" x="27" y="39" width="10" height="6" rx="3"/>
+      <circle class="skin" cx="32" cy="26" r="15.5"/>
+      <path class="hair" d="M17.5 28c-1-9.5 5-15 14.5-15s15.5 5.5 14.5 15c-4-7.5-10.5-11-14.5-11s-10.5 3.5-14.5 11z"/>
+      <path class="white" d="M18 19c2-5.5 7-9 14-9s12 3.5 14 9c-9-3.5-20-3.5-28 0z"/>
+      <circle class="dark" cx="26.5" cy="27" r="3.8"/>
+      <circle class="dark" cx="37.5" cy="27" r="3.8"/>
+      <circle class="white" cx="28" cy="25.2" r="1.6"/>
+      <circle class="white" cx="39" cy="25.2" r="1.6"/>
+      <ellipse cx="20" cy="32.5" rx="5.5" ry="3" fill="#ffb8c8" opacity="0.55"/>
+      <ellipse cx="44" cy="32.5" rx="5.5" ry="3" fill="#ffb8c8" opacity="0.55"/>
+      <path class="stroke" stroke-width="2.2" d="M26.5 35c3 2.5 11 2.5 11 0"/>`,
     dog: `
-      <path class="hair" d="M14.5 24 10 14l12 4zM49.5 24 54 14l-12 4z" />
-      <path class="outfit" d="M17.5 30.3c0-9.4 5.5-15.3 14.5-15.3s14.5 5.9 14.5 15.3v7c0 7.2-5.6 12.1-14.5 12.1s-14.5-4.9-14.5-12.1z" />
-      <path class="skin" d="M24.5 40.4c2.5 6 12.5 6 15 0-2.2 2.1-5 3.1-7.5 3.1s-5.3-1-7.5-3.1z" />
-      <circle class="dark" cx="26.8" cy="31.7" r="2.2" />
-      <circle class="dark" cx="37.2" cy="31.7" r="2.2" />
-      <path class="dark" d="M29.2 37.3c1.3-1.3 4.3-1.3 5.6 0-1.1 2.4-4.5 2.4-5.6 0z" />
-      <path class="stroke" d="M28.8 42.2c1.9 1.5 4.5 1.5 6.4 0" stroke-width="2.8" />
-      <path class="accent" d="M24 19.2c3.1-4.4 12.9-4.4 16 0-6.1-2-10-2-16 0z" />
-    `,
+      <path class="hair" d="M15 27 10.5 13.5l13 5zM49 27 53.5 13.5l-13 5z"/>
+      <path class="outfit" d="M18 30c0-9.5 5.5-15.5 14-15.5S46 20.5 46 30v7.5c0 7.5-5.5 12.5-14 12.5S18 45 18 37.5z"/>
+      <path class="skin" d="M23 42c1.5 8.5 12.5 9 18 0-2.5 4.5-6 6.5-9 6.5s-6.5-2-9-6.5z"/>
+      <circle class="dark" cx="27" cy="32" r="3"/>
+      <circle class="dark" cx="37" cy="32" r="3"/>
+      <circle class="white" cx="28.2" cy="30.5" r="1.2"/>
+      <circle class="white" cx="38.2" cy="30.5" r="1.2"/>
+      <ellipse cx="22" cy="37" rx="4.5" ry="2.8" fill="#ffb8c8" opacity="0.55"/>
+      <ellipse cx="42" cy="37" rx="4.5" ry="2.8" fill="#ffb8c8" opacity="0.55"/>
+      <path class="dark" d="M28.5 38.5c2-2 5-2 7 0-1.2 3-5.8 3-7 0z"/>
+      <path d="M29.5 41c.6 4 4.4 4 5 0" fill="#ff9999" opacity="0.9"/>
+      <path class="accent" d="M26 19c3-4.5 10-4.5 12 0-4-2-8-2-12 0z"/>
+      <path d="M22 44.5c2.5-2.5 6.5-4 10-4s7.5 1.5 10 4" stroke="#ee3333" stroke-width="3.8" fill="none" stroke-linecap="round"/>
+      <path d="M24 23.5c2-2.5 4-2.5 5-1M40 23.5c-2-2.5-4-2.5-5-1" stroke="var(--avatar-hair)" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
   };
-
-  return `<svg aria-hidden="true" viewBox="0 0 64 64">${icons[person.icon]}</svg>`;
+  return `<svg aria-hidden="true" viewBox="0 0 64 64">${icons[person.icon] ?? ""}</svg>`;
 }
 
 function boatIcon() {
-  return `
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M4 13h16l-2.4 5H6.4z" />
-      <path d="M8 13V7l5 3-5 3" />
-      <path d="M4 20c1.6.8 3.2.8 4.8 0 1.6.8 3.2.8 4.8 0 1.6.8 3.2.8 4.8 0" />
-    </svg>
-  `;
+  return `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 13h16l-2.4 5H6.4z"/><path d="M8 13V7l5 3-5 3"/><path d="M4 20c1.6.8 3.2.8 4.8 0 1.6.8 3.2.8 4.8 0 1.6.8 3.2.8 4.8 0"/></svg>`;
 }
 
-el.crossButton.addEventListener("click", tryCross);
-el.boatButton.addEventListener("click", tryCross);
-el.boatButton.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") {
-    return;
-  }
+/* ═══════════════════════════════════════════════
+   BOOT — verify levels & show select screen
+   ═══════════════════════════════════════════════ */
+(function boot() {
+  // Verify all levels are solvable (dev check — logs to console)
+  LEVELS.forEach((lvl) => {
+    const min = bfsSolve(lvl, PEOPLE_MASTER);
+    if (min === null) {
+      console.error(`Level ${lvl.id} "${lvl.title}" is UNSOLVABLE!`);
+    } else {
+      if (lvl.moveLimit && min > lvl.moveLimit) {
+        console.error(`Level ${lvl.id} "${lvl.title}" moveLimit ${lvl.moveLimit} < minimum ${min}!`);
+      } else {
+        console.log(`Level ${lvl.id}: min=${min} moves${lvl.moveLimit ? ` (limit: ${lvl.moveLimit})` : ""} ✓`);
+      }
+    }
+  });
 
-  event.preventDefault();
-  tryCross();
-});
-el.clearButton.addEventListener("click", disembarkSelectedPassenger);
-el.resetButton.addEventListener("click", resetGame);
-el.playAgainButton.addEventListener("click", resetGame);
-el.ruleToggle.addEventListener("click", () => {
-  const isOpen = el.rules.classList.toggle("open");
-  el.ruleToggle.setAttribute("aria-expanded", String(isOpen));
-});
-
-render();
+  reportAccess();
+  initSelectScreen();
+})();

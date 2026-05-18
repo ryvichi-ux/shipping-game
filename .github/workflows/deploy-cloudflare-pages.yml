@@ -21,7 +21,8 @@ jobs:
       - name: Prepare static assets
         run: |
           mkdir -p dist
-          cp index.html styles.css game.js dist/
+          cp index.html styles.css game.js levels.js dist/
+          cp -r functions dist/
 
       - name: Create Pages project if needed
         uses: cloudflare/wrangler-action@v3
