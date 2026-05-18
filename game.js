@@ -275,8 +275,8 @@ function buildLevelGrid() {
     card.innerHTML = `
       <span class="level-num">${lvl.id}</span>
       <span class="level-card-title">${lvl.title}</span>
-      ${clearCount > 0 ? `<span class="level-clears">${clearCount}クリア</span>` : ""}
       ${cleared && best ? `<span class="level-best">${best.moves}手 ${formatTime(best.time)}</span>` : ""}
+      ${unlocked && clearCount > 0 ? `<span class="level-clears">（${clearCount}人クリア）</span>` : ""}
       ${!unlocked ? `<span class="level-lock">🔒</span>` : ""}
       ${cleared ? `<span class="level-check">✓</span>` : ""}
     `;
