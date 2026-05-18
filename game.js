@@ -98,6 +98,7 @@ const PEOPLE_MASTER = [
    ═══════════════════════════════════════════════ */
 const STORAGE_KEY = "kawatari_progress_v1";
 let globalLevelClears = {};
+let moveHistory = [];      // undo snapshots: [{peopleSides, boatSide, moveCount}]
 
 let currentLevel = null;   // LEVELS entry
 let people = [];           // active person objects (clones with .side)
@@ -199,6 +200,7 @@ const el = {
   clearButton:   document.getElementById("clearButton"),
   resetButton:   document.getElementById("resetButton"),
   backToSelect:  document.getElementById("backToSelect"),
+  undoButton:    document.getElementById("undoButton"),
   moveCount:     document.getElementById("moveCount"),
   boatSideText:  document.getElementById("boatSideText"),
   selectionCount:document.getElementById("selectionCount"),
@@ -343,6 +345,7 @@ function startGame(lvl) {
   });
 
   // Reset state
+  moveHistory = [];
   Object.assign(gameState, {
     boatSide: "left",
     selected: [],
@@ -508,6 +511,7 @@ function updateHud() {
   el.crossButton.disabled     = gameState.selected.length === 0 || gameState.isMoving;
   el.crossButton.classList.toggle("returning", gameState.boatSide === "right");
   el.clearButton.disabled     = !gameState.disembarkTarget || gameState.isMoving;
+  if (el.undoButton) el.undoButton.disabled = moveHistory.length === 0 || gameState.isMoving;
 
   if (el.moveLimitBadge && lim) {
     const remaining = lim - gameState.moveCount;
@@ -535,6 +539,7 @@ function setupPersonDrag(button, person) {
 
   button.addEventListener("pointermove", (e) => {
     if (e.pointerId !== captureId) return;
+    e.preventDefault();
     const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
     if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
       isDragging = true;
@@ -597,6 +602,7 @@ function setupBoatMiniDrag(mini, person) {
 
   mini.addEventListener("pointermove", (e) => {
     if (e.pointerId !== captureId) return;
+    e.preventDefault();
     const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
     if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
       isDragging = true;
@@ -760,7 +766,32 @@ function markBoatConflict() {
 /* ═══════════════════════════════════════════════
    CROSSING
    ═══════════════════════════════════════════════ */
+function saveSnapshot() {
+  moveHistory.push({
+    peopleSides: people.map((p) => p.side),
+    boatSide: gameState.boatSide,
+    moveCount: gameState.moveCount,
+  });
+}
+
+function undoMove() {
+  if (!moveHistory.length) { showToast("これ以上戻れません。", "warn"); return; }
+  const snap = moveHistory.pop();
+  snap.peopleSides.forEach((side, i) => { people[i].side = side; });
+  gameState.boatSide = snap.boatSide;
+  gameState.moveCount = snap.moveCount;
+  gameState.selected = [];
+  gameState.disembarkTarget = null;
+  if (el.moveLimitBadge && currentLevel?.moveLimit) {
+    const rem = currentLevel.moveLimit - snap.moveCount;
+    el.moveLimitBadge.textContent = `残り ${rem} 手`;
+    el.moveLimitBadge.classList.toggle("warn", rem <= 3);
+  }
+  render();
+}
+
 function crossRiver() {
+  saveSnapshot();
   gameState.isMoving = true;
   render();
 
@@ -833,6 +864,7 @@ el.backFromWin?.addEventListener("click", () => {
    ═══════════════════════════════════════════════ */
 function resetGame() {
   clearInterval(gameState.timerInterval);
+  moveHistory = [];
   people.forEach((p) => { p.side = "left"; });
   Object.assign(gameState, {
     boatSide: "left", selected: [], disembarkTarget: null,
@@ -850,6 +882,7 @@ function resetGame() {
 }
 
 el.resetButton?.addEventListener("click", resetGame);
+el.undoButton?.addEventListener("click", undoMove);
 el.backToSelect?.addEventListener("click", () => {
   clearInterval(gameState.timerInterval);
   initSelectScreen();
