@@ -33,14 +33,16 @@ export async function onRequestGet({ env }) {
   const kv = env.PUZZLE_STATS;
   if (!kv) return json({ error: "KV not configured" }, 503);
 
-  const [accesses, clears] = await Promise.all([
+  const [accesses, clears, allClearsRaw] = await Promise.all([
     kv.get("total_accesses"),
     kv.get("total_clears"),
+    kv.get("all_clears"),
   ]);
 
   return json({
     accesses: parseInt(accesses ?? "0"),
     clears: parseInt(clears ?? "0"),
+    levelClears: allClearsRaw ? JSON.parse(allClearsRaw) : {},
   });
 }
 
@@ -67,20 +69,30 @@ export async function onRequestPost({ request, env }) {
       return json({ error: "Missing fields" }, 400);
     }
 
-    // Sanitise name (max 20 chars, strip HTML)
     const safeName = String(name).replace(/[<>&"]/g, "").slice(0, 20) || "匿名";
 
-    await Promise.all([
-      kv.put("total_clears", String(parseInt((await kv.get("total_clears")) ?? "0") + 1)),
-      kv.put("clears_" + levelId, String(parseInt((await kv.get("clears_" + levelId)) ?? "0") + 1)),
+    const [totalRaw, levelRaw, allClearsRaw, scoresRaw] = await Promise.all([
+      kv.get("total_clears"),
+      kv.get("clears_" + levelId),
+      kv.get("all_clears"),
+      kv.get("scores_" + levelId),
     ]);
 
-    const raw = await kv.get("scores_" + levelId);
-    const scores = raw ? JSON.parse(raw) : [];
+    const newTotal      = parseInt(totalRaw  ?? "0") + 1;
+    const newLevelCount = parseInt(levelRaw  ?? "0") + 1;
+    const allClears     = allClearsRaw ? JSON.parse(allClearsRaw) : {};
+    allClears[String(levelId)] = newLevelCount;
+
+    const scores = scoresRaw ? JSON.parse(scoresRaw) : [];
     scores.push({ name: safeName, moves, time, date: new Date().toISOString() });
-    // Sort by moves ASC, then time ASC
     scores.sort((a, b) => a.moves - b.moves || a.time - b.time);
-    await kv.put("scores_" + levelId, JSON.stringify(scores.slice(0, 10)));
+
+    await Promise.all([
+      kv.put("total_clears",      String(newTotal)),
+      kv.put("clears_" + levelId, String(newLevelCount)),
+      kv.put("all_clears",        JSON.stringify(allClears)),
+      kv.put("scores_" + levelId, JSON.stringify(scores.slice(0, 10))),
+    ]);
 
     return json({ ok: true });
   }

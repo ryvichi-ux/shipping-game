@@ -85,18 +85,19 @@ function bfsSolve(levelDef, allPeople) {
 const PEOPLE_MASTER = [
   { id: "father",    name: "父",   boatLabel: "父",   role: "舟をこげる",  type: "father",   driver: true,  color: "#bdefff", line: "#12304a", accent: "#65f2ff", skin: "#f2c8a6", hair: "#27313e", outfit: "#296dff", icon: "father"           },
   { id: "mother",    name: "母",   boatLabel: "母",   role: "舟をこげる",  type: "mother",   driver: true,  color: "#ffd6ef", line: "#4d1a3a", accent: "#ff72c6", skin: "#f4c5a9", hair: "#663247", outfit: "#c04789", icon: "mother"           },
-  { id: "son1",      name: "息子1", boatLabel: "息子1", role: "子ども",    type: "son",      driver: false, color: "#cfe8ff", line: "#173f6c", accent: "#37d7ff", skin: "#efc1a0", hair: "#3a2619", outfit: "#2186ff", icon: "son-cap",    risk: "（母×）" },
-  { id: "son2",      name: "息子2", boatLabel: "息子2", role: "子ども",    type: "son",      driver: false, color: "#d8ffeb", line: "#164238", accent: "#56f0a7", skin: "#e8b996", hair: "#2b2020", outfit: "#1aa783", icon: "son-headphones", risk: "（母×）" },
-  { id: "daughter1", name: "娘1",  boatLabel: "娘1",  role: "子ども",    type: "daughter", driver: false, color: "#ffe5c7", line: "#71411d", accent: "#ffb23f", skin: "#f1bf9f", hair: "#6d3d22", outfit: "#ff8d45", icon: "daughter-bow",    risk: "（父×）" },
-  { id: "daughter2", name: "娘2",  boatLabel: "娘2",  role: "子ども",    type: "daughter", driver: false, color: "#ffe0f4", line: "#6c2750", accent: "#ff77c8", skin: "#f0bea0", hair: "#563044", outfit: "#d954a8", icon: "daughter-pigtails", risk: "（父×）" },
-  { id: "maid",      name: "召使", boatLabel: "召使", role: "舟をこげる",  type: "maid",     driver: true,  color: "#e9dcff", line: "#34204f", accent: "#d9cbff", skin: "#efc7ad", hair: "#2f2734", outfit: "#4f3a81", icon: "maid"             },
-  { id: "dog",       name: "犬",   boatLabel: "犬",   role: "召使が必要", type: "dog",      driver: false, color: "#ffe2bd", line: "#6e452a", accent: "#ffbd5f", skin: "#c8834a", hair: "#7a4a2f", outfit: "#f4b66d", icon: "dog"              },
+  { id: "son1",      name: "息子(A)", boatLabel: "息子A",  role: "子ども",   type: "son",      driver: false, color: "#cfe8ff", line: "#173f6c", accent: "#37d7ff", skin: "#efc1a0", hair: "#3a2619", outfit: "#2186ff", icon: "son-cap"           },
+  { id: "son2",      name: "息子(B)", boatLabel: "息子B",  role: "子ども",   type: "son",      driver: false, color: "#d8ffeb", line: "#164238", accent: "#56f0a7", skin: "#e8b996", hair: "#2b2020", outfit: "#1aa783", icon: "son-headphones"    },
+  { id: "daughter1", name: "娘(A)",  boatLabel: "娘A",    role: "子ども",   type: "daughter", driver: false, color: "#ffe5c7", line: "#71411d", accent: "#ffb23f", skin: "#f1bf9f", hair: "#6d3d22", outfit: "#ff8d45", icon: "daughter-bow"      },
+  { id: "daughter2", name: "娘(B)",  boatLabel: "娘B",    role: "子ども",   type: "daughter", driver: false, color: "#ffe0f4", line: "#6c2750", accent: "#ff77c8", skin: "#f0bea0", hair: "#563044", outfit: "#d954a8", icon: "daughter-pigtails" },
+  { id: "maid",      name: "召使い",  boatLabel: "召使い",  role: "舟をこげる", type: "maid",    driver: true,  color: "#e9dcff", line: "#34204f", accent: "#d9cbff", skin: "#efc7ad", hair: "#2f2734", outfit: "#4f3a81", icon: "maid"              },
+  { id: "dog",       name: "犬",     boatLabel: "犬",     role: "召使必要",  type: "dog",      driver: false, color: "#ffe2bd", line: "#6e452a", accent: "#ffbd5f", skin: "#c8834a", hair: "#7a4a2f", outfit: "#f4b66d", icon: "dog"               },
 ];
 
 /* ═══════════════════════════════════════════════
    GLOBAL STATE
    ═══════════════════════════════════════════════ */
 const STORAGE_KEY = "kawatari_progress_v1";
+let globalLevelClears = {};
 
 let currentLevel = null;   // LEVELS entry
 let people = [];           // active person objects (clones with .side)
@@ -239,6 +240,10 @@ async function initSelectScreen() {
   if (stats) {
     if (elSel.statsAccess) elSel.statsAccess.textContent = stats.accesses.toLocaleString();
     if (elSel.statsClears) elSel.statsClears.textContent = stats.clears.toLocaleString();
+    if (stats.levelClears) {
+      globalLevelClears = stats.levelClears;
+      buildLevelGrid();
+    }
   }
 }
 
@@ -251,6 +256,7 @@ function buildLevelGrid() {
     const cleared  = isCleared(lvl.id);
     const best     = progress[lvl.id];
 
+    const clearCount = globalLevelClears[lvl.id] || 0;
     const card = document.createElement("button");
     card.type = "button";
     card.className = "level-card" + (cleared ? " cleared" : "") + (unlocked ? "" : " locked");
@@ -258,6 +264,7 @@ function buildLevelGrid() {
     card.innerHTML = `
       <span class="level-num">${lvl.id}</span>
       <span class="level-card-title">${lvl.title}</span>
+      ${clearCount > 0 ? `<span class="level-clears">${clearCount}クリア</span>` : ""}
       ${cleared && best ? `<span class="level-best">${best.moves}手 ${formatTime(best.time)}</span>` : ""}
       ${!unlocked ? `<span class="level-lock">🔒</span>` : ""}
       ${cleared ? `<span class="level-check">✓</span>` : ""}
@@ -318,14 +325,21 @@ elIntro.backBtn?.addEventListener("click", initSelectScreen);
 function startGame(lvl) {
   currentLevel = lvl;
 
-  // Clone people for this level
-  people = lvl.characters.map((id) => ({ ...PEOPLE_MASTER.find((p) => p.id === id), side: "left" }));
-
-  // Set risk labels based on active constraints
-  people.forEach((p) => {
-    if (!lvl.constraints.fatherDaughter) delete p.risk;
-    if (!lvl.constraints.motherSon && p.type === "son") delete p.risk;
-    if (!lvl.constraints.fatherDaughter && p.type === "daughter") delete p.risk;
+  // Clone people for this level with dynamic role labels
+  people = lvl.characters.map((id) => {
+    const master = PEOPLE_MASTER.find((p) => p.id === id);
+    const p = { ...master, side: "left" };
+    if (p.type === "son") {
+      p.role = lvl.constraints.motherSon ? "母NG" : "";
+      p.roleRed = !!lvl.constraints.motherSon;
+    } else if (p.type === "daughter") {
+      p.role = lvl.constraints.fatherDaughter ? "父NG" : "";
+      p.roleRed = !!lvl.constraints.fatherDaughter;
+    } else if (p.id === "dog") {
+      p.role = lvl.constraints.dogMaid ? "召使必要" : "";
+      p.roleRed = !!lvl.constraints.dogMaid;
+    }
+    return p;
   });
 
   // Reset state
@@ -390,14 +404,37 @@ function render() {
   el.rightPeople.innerHTML = "";
 
   people.forEach((person) => {
-    if (gameState.selected.includes(person.id)) return;
-    const button = createPersonButton(person);
-    if (person.side !== gameState.boatSide || gameState.isMoving) button.disabled = true;
-    (person.side === "left" ? el.leftPeople : el.rightPeople).append(button);
+    const isSelected = gameState.selected.includes(person.id);
+    const showLeft  = !isSelected && person.side === "left";
+    const showRight = !isSelected && person.side === "right";
+
+    // Left bank — always render a slot (real or ghost)
+    if (showLeft) {
+      const btn = createPersonButton(person);
+      btn.disabled = gameState.boatSide !== "left" || gameState.isMoving;
+      el.leftPeople.append(btn);
+    } else {
+      el.leftPeople.append(createPersonGhost());
+    }
+
+    // Right bank — always render a slot (real or ghost)
+    if (showRight) {
+      const btn = createPersonButton(person);
+      btn.disabled = gameState.boatSide !== "right" || gameState.isMoving;
+      el.rightPeople.append(btn);
+    } else {
+      el.rightPeople.append(createPersonGhost());
+    }
   });
 
   renderBoatPassengers();
   updateHud();
+}
+
+function createPersonGhost() {
+  const div = document.createElement("div");
+  div.className = "person-ghost";
+  return div;
 }
 
 function createPersonButton(person) {
@@ -406,7 +443,7 @@ function createPersonButton(person) {
   button.className = "person";
   button.dataset.id = person.id;
   setAvatarVars(button, person);
-  button.setAttribute("aria-label", `${person.name}${person.risk || ""}を選択`);
+  button.setAttribute("aria-label", `${person.name}を選択`);
 
   const badge = person.driver
     ? `<span class="driver-badge" aria-label="舟をこげる">${boatIcon()}</span>`
@@ -415,12 +452,12 @@ function createPersonButton(person) {
   button.innerHTML = `
     <span class="avatar">${personIcon(person)}</span>
     <span>
-      <span class="person-name">${person.name}${person.risk ? `<span class="person-risk">${person.risk}</span>` : ""}</span>
-      <span class="person-role">${person.role}</span>
+      <span class="person-name">${person.name}</span>
+      ${person.role ? `<span class="person-role${person.roleRed ? " person-role-warn" : ""}">${person.role}</span>` : ""}
     </span>
     ${badge}
   `;
-  button.addEventListener("click", () => togglePerson(person.id));
+  setupPersonDrag(button, person);
   return button;
 }
 
@@ -453,7 +490,7 @@ function renderBoatPassengers() {
     mini.classList.toggle("danger", onboardProblem?.ids.includes(person.id));
     setAvatarVars(mini, person);
     mini.innerHTML = `<span class="boat-mini-label">${person.boatLabel}</span><span class="boat-mini-icon">${personIcon(person)}</span>`;
-    mini.addEventListener("click", (e) => { e.stopPropagation(); toggleDisembarkTarget(person.id); });
+    setupBoatMiniDrag(mini, person);
     el.boatPassengers.append(mini);
   });
 }
@@ -477,6 +514,133 @@ function updateHud() {
     el.moveLimitBadge.textContent = `残り ${remaining} 手`;
     el.moveLimitBadge.classList.toggle("warn", remaining <= 3);
   }
+}
+
+/* ═══════════════════════════════════════════════
+   DRAG & DROP
+   ═══════════════════════════════════════════════ */
+const DRAG_THRESHOLD = 6;
+
+function setupPersonDrag(button, person) {
+  let dragStartX, dragStartY, dragClone = null, isDragging = false, captureId = null;
+
+  button.addEventListener("pointerdown", (e) => {
+    if (button.disabled || gameState.isMoving) return;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    isDragging = false;
+    captureId = e.pointerId;
+    button.setPointerCapture(e.pointerId);
+  });
+
+  button.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== captureId) return;
+    const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+    if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      isDragging = true;
+      const rect = button.getBoundingClientRect();
+      dragClone = button.cloneNode(true);
+      Object.assign(dragClone.style, {
+        position: "fixed", zIndex: "9999", pointerEvents: "none",
+        width: rect.width + "px", opacity: "0.88",
+        transform: "scale(1.06) rotate(-1.5deg)",
+        left: (e.clientX - rect.width / 2) + "px",
+        top:  (e.clientY - rect.height / 2) + "px",
+      });
+      document.body.appendChild(dragClone);
+      button.style.opacity = "0.28";
+      el.boatButton.classList.add("drop-target");
+    }
+    if (isDragging && dragClone) {
+      const rect = button.getBoundingClientRect();
+      dragClone.style.left = (e.clientX - rect.width / 2) + "px";
+      dragClone.style.top  = (e.clientY - rect.height / 2) + "px";
+    }
+  });
+
+  function endDrag(e) {
+    if (dragClone) { dragClone.remove(); dragClone = null; }
+    button.style.opacity = "";
+    el.boatButton.classList.remove("drop-target");
+    if (isDragging) {
+      const br = el.boatButton.getBoundingClientRect();
+      if (e.clientX >= br.left && e.clientX <= br.right && e.clientY >= br.top && e.clientY <= br.bottom) {
+        togglePerson(person.id);
+      }
+    } else {
+      togglePerson(person.id);
+    }
+    isDragging = false; captureId = null;
+  }
+
+  button.addEventListener("pointerup", endDrag);
+  button.addEventListener("pointercancel", () => {
+    if (dragClone) { dragClone.remove(); dragClone = null; }
+    button.style.opacity = "";
+    el.boatButton.classList.remove("drop-target");
+    isDragging = false; captureId = null;
+  });
+}
+
+function setupBoatMiniDrag(mini, person) {
+  let dragStartX, dragStartY, dragClone = null, isDragging = false, captureId = null;
+
+  mini.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    if (gameState.isMoving) return;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    isDragging = false;
+    captureId = e.pointerId;
+    mini.setPointerCapture(e.pointerId);
+  });
+
+  mini.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== captureId) return;
+    const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+    if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      isDragging = true;
+      const rect = mini.getBoundingClientRect();
+      dragClone = mini.cloneNode(true);
+      Object.assign(dragClone.style, {
+        position: "fixed", zIndex: "9999", pointerEvents: "none",
+        width: rect.width + "px", height: rect.height + "px",
+        opacity: "0.88", transform: "scale(1.1)",
+        left: (e.clientX - rect.width / 2) + "px",
+        top:  (e.clientY - rect.height / 2) + "px",
+      });
+      document.body.appendChild(dragClone);
+      mini.style.opacity = "0.28";
+    }
+    if (isDragging && dragClone) {
+      const rect = mini.getBoundingClientRect();
+      dragClone.style.left = (e.clientX - rect.width / 2) + "px";
+      dragClone.style.top  = (e.clientY - rect.height / 2) + "px";
+    }
+  });
+
+  function endMiniDrag(e) {
+    if (dragClone) { dragClone.remove(); dragClone = null; }
+    mini.style.opacity = "";
+    if (isDragging) {
+      const br = el.boatButton.getBoundingClientRect();
+      if (e.clientX < br.left || e.clientX > br.right || e.clientY < br.top || e.clientY > br.bottom) {
+        gameState.selected = gameState.selected.filter((id) => id !== person.id);
+        if (gameState.disembarkTarget === person.id) gameState.disembarkTarget = null;
+        render();
+      }
+    } else {
+      toggleDisembarkTarget(person.id);
+    }
+    isDragging = false; captureId = null;
+  }
+
+  mini.addEventListener("pointerup", (e) => { e.stopPropagation(); endMiniDrag(e); });
+  mini.addEventListener("pointercancel", () => {
+    if (dragClone) { dragClone.remove(); dragClone = null; }
+    mini.style.opacity = "";
+    isDragging = false; captureId = null;
+  });
 }
 
 /* ═══════════════════════════════════════════════
