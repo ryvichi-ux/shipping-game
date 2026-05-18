@@ -1,0 +1,6 @@
+name = "shipping-game"
+pages_build_output_dir = "dist"
+
+[[kv_namespaces]]
+binding = "PUZZLE_STATS"
+id = "7c30955a63ba4eb29021b26393dc8c16"
