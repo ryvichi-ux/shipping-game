@@ -141,8 +141,12 @@ function bestRecord(levelId) { return loadProgress()[levelId] || null; }
 const STATS_URL = "/api/stats";
 
 async function reportAccess() {
-  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "access" }) }); }
-  catch {}
+  const flagKey = "kawatari_access_reported";
+  if (localStorage.getItem(flagKey)) return;
+  try {
+    await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "access" }) });
+    localStorage.setItem(flagKey, "1");
+  } catch {}
 }
 async function reportClear(levelId, name, moves, time) {
   try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "clear", levelId, name, moves, time }) }); }
