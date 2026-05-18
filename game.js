@@ -201,6 +201,7 @@ const el = {
   resetButton:   document.getElementById("resetButton"),
   backToSelect:  document.getElementById("backToSelect"),
   undoButton:    document.getElementById("undoButton"),
+  gameLevelNum:  document.getElementById("gameLevelNum"),
   moveCount:     document.getElementById("moveCount"),
   boatSideText:  document.getElementById("boatSideText"),
   selectionCount:document.getElementById("selectionCount"),
@@ -355,6 +356,9 @@ function startGame(lvl) {
     elapsedSeconds: 0,
     startTime: Date.now(),
   });
+
+  // Level number in title
+  if (el.gameLevelNum) el.gameLevelNum.textContent = `（${lvl.id}）`;
 
   // Move limit badge
   if (el.moveLimitBadge) {
@@ -589,6 +593,7 @@ function setupPersonDrag(button, person) {
 
 function setupBoatMiniDrag(mini, person) {
   let dragStartX, dragStartY, dragClone = null, isDragging = false, captureId = null;
+  let lastTapTime = 0;
 
   mini.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
@@ -625,18 +630,29 @@ function setupBoatMiniDrag(mini, person) {
     }
   });
 
+  function disembarkPerson() {
+    gameState.selected = gameState.selected.filter((id) => id !== person.id);
+    if (gameState.disembarkTarget === person.id) gameState.disembarkTarget = null;
+    render();
+  }
+
   function endMiniDrag(e) {
     if (dragClone) { dragClone.remove(); dragClone = null; }
     mini.style.opacity = "";
     if (isDragging) {
       const br = el.boatButton.getBoundingClientRect();
       if (e.clientX < br.left || e.clientX > br.right || e.clientY < br.top || e.clientY > br.bottom) {
-        gameState.selected = gameState.selected.filter((id) => id !== person.id);
-        if (gameState.disembarkTarget === person.id) gameState.disembarkTarget = null;
-        render();
+        disembarkPerson();
       }
     } else {
-      toggleDisembarkTarget(person.id);
+      const now = Date.now();
+      if (now - lastTapTime < 320) {
+        lastTapTime = 0;
+        disembarkPerson();
+      } else {
+        lastTapTime = now;
+        toggleDisembarkTarget(person.id);
+      }
     }
     isDragging = false; captureId = null;
   }
