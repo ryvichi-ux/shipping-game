@@ -148,8 +148,12 @@ async function reportAccess() {
     localStorage.setItem(flagKey, "1");
   } catch {}
 }
-async function reportClear(levelId, name, moves, time) {
-  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "clear", levelId, name, moves, time }) }); }
+async function reportCountClear(levelId, moves, time) {
+  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "count_clear", levelId, moves, time }) }); }
+  catch {}
+}
+async function reportSubmitScore(levelId, name, moves, time) {
+  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "submit_score", levelId, name, moves, time }) }); }
   catch {}
 }
 async function fetchGlobalStats() {
@@ -842,6 +846,9 @@ function showWin() {
   // Record local best
   markCleared(currentLevel.id, gameState.moveCount, elapsed);
 
+  // Auto-report to global counter (no name needed)
+  reportCountClear(currentLevel.id, gameState.moveCount, elapsed);
+
   if (el.winTitle)   el.winTitle.textContent   = `ステージ ${currentLevel.id}「${currentLevel.title}」クリア！`;
   if (el.finalMoves) el.finalMoves.textContent = gameState.moveCount;
   if (el.finalTime)  el.finalTime.textContent  = formatTime(elapsed);
@@ -857,7 +864,7 @@ function showWin() {
 // Score submission
 el.submitScore?.addEventListener("click", async () => {
   const name = (el.nameInput?.value || "").trim() || "匿名";
-  await reportClear(currentLevel.id, name, gameState.moveCount, gameState.elapsedSeconds);
+  await reportSubmitScore(currentLevel.id, name, gameState.moveCount, gameState.elapsedSeconds);
   el.submitScore.disabled = true;
   el.submitScore.textContent = "送信済み ✓";
   showToast("スコアを記録しました！", "good");
