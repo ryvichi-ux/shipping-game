@@ -410,6 +410,42 @@ h1 {
   display: block;
 }
 
+/* ── Character PNG sprites ───────────────────────
+   Source image: characters.png  1536×1024  4col×2row
+   Cell: 384×512px  Circle diameter in source: ~310px
+   Scale for 42px avatar: 42/310 = 0.1355
+   bg-size: 208px 139px
+   ─────────────────────────────────────────────── */
+.char-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-image: url('characters.png');
+  background-repeat: no-repeat;
+  background-size: 208px 139px;
+}
+/* row 0 (top): father, mother, son-cap, son-headphones */
+.char-sprite[data-char="father"]            { background-position:   -5px  -7px; }
+.char-sprite[data-char="mother"]            { background-position:  -57px  -7px; }
+.char-sprite[data-char="son-cap"]           { background-position: -109px  -7px; }
+.char-sprite[data-char="son-headphones"]    { background-position: -161px  -7px; }
+/* row 1 (bottom): daughter-bow, daughter-pigtails, maid, dog */
+.char-sprite[data-char="daughter-bow"]      { background-position:   -5px -76px; }
+.char-sprite[data-char="daughter-pigtails"] { background-position:  -57px -76px; }
+.char-sprite[data-char="maid"]              { background-position: -109px -76px; }
+.char-sprite[data-char="dog"]               { background-position: -161px -76px; }
+
+/* boat-mini-icon (33px): scale 33/310 = 0.1065, bg-size 164×109 */
+.boat-mini-icon .char-sprite { background-size: 164px 109px; }
+.boat-mini-icon .char-sprite[data-char="father"]            { background-position:   -4px  -5px; }
+.boat-mini-icon .char-sprite[data-char="mother"]            { background-position:  -45px  -5px; }
+.boat-mini-icon .char-sprite[data-char="son-cap"]           { background-position:  -86px  -5px; }
+.boat-mini-icon .char-sprite[data-char="son-headphones"]    { background-position: -127px  -5px; }
+.boat-mini-icon .char-sprite[data-char="daughter-bow"]      { background-position:   -4px -60px; }
+.boat-mini-icon .char-sprite[data-char="daughter-pigtails"] { background-position:  -45px -60px; }
+.boat-mini-icon .char-sprite[data-char="maid"]              { background-position:  -86px -60px; }
+.boat-mini-icon .char-sprite[data-char="dog"]               { background-position: -127px -60px; }
+
 .person-name,
 .person-role {
   position: relative;
@@ -1111,6 +1147,27 @@ h1 {
     width: 28px;
     height: 28px;
   }
+
+  /* sprite overrides for small screens (36px avatar, 30px boat-mini) */
+  .char-sprite { background-size: 178px 119px; }
+  .char-sprite[data-char="father"]            { background-position:   -4px  -6px; }
+  .char-sprite[data-char="mother"]            { background-position:  -49px  -6px; }
+  .char-sprite[data-char="son-cap"]           { background-position:  -94px  -6px; }
+  .char-sprite[data-char="son-headphones"]    { background-position: -138px  -6px; }
+  .char-sprite[data-char="daughter-bow"]      { background-position:   -4px -65px; }
+  .char-sprite[data-char="daughter-pigtails"] { background-position:  -49px -65px; }
+  .char-sprite[data-char="maid"]              { background-position:  -94px -65px; }
+  .char-sprite[data-char="dog"]               { background-position: -138px -65px; }
+
+  .boat-mini-icon .char-sprite { background-size: 149px 99px; }
+  .boat-mini-icon .char-sprite[data-char="father"]            { background-position:   -4px  -5px; }
+  .boat-mini-icon .char-sprite[data-char="mother"]            { background-position:  -41px  -5px; }
+  .boat-mini-icon .char-sprite[data-char="son-cap"]           { background-position:  -78px  -5px; }
+  .boat-mini-icon .char-sprite[data-char="son-headphones"]    { background-position: -115px  -5px; }
+  .boat-mini-icon .char-sprite[data-char="daughter-bow"]      { background-position:   -4px -54px; }
+  .boat-mini-icon .char-sprite[data-char="daughter-pigtails"] { background-position:  -41px -54px; }
+  .boat-mini-icon .char-sprite[data-char="maid"]              { background-position:  -78px -54px; }
+  .boat-mini-icon .char-sprite[data-char="dog"]               { background-position: -115px -54px; }
 }
 
 @media (min-width: 760px) {
