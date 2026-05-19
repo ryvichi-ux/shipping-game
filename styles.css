@@ -1254,6 +1254,15 @@ h1 {
   line-height: 1.5;
 }
 
+.build-version {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.22);
+  letter-spacing: 0.1em;
+}
+
 /* Level Grid */
 .level-grid {
   display: grid;

@@ -97,6 +97,7 @@ const PEOPLE_MASTER = [
    GLOBAL STATE
    ═══════════════════════════════════════════════ */
 const STORAGE_KEY = "kawatari_progress_v1";
+const VERSION = "0.6.0";
 let globalLevelClears = {};
 let moveHistory = [];      // undo snapshots: [{peopleSides, boatSide, moveCount}]
 let lastTapInfo = { id: null, time: 0 };  // cross-render double-tap tracking
@@ -246,6 +247,8 @@ function showScreen(name) {
    ═══════════════════════════════════════════════ */
 async function initSelectScreen() {
   showScreen("select");
+  const vEl = document.getElementById("buildVersion");
+  if (vEl) vEl.textContent = `v${VERSION}`;
   buildLevelGrid();
 
   const stats = await fetchGlobalStats();
