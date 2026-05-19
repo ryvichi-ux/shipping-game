@@ -8,9 +8,11 @@ function bfsSolve(levelDef, allPeople) {
   const chars = levelDef.characters.map((id) => allPeople.find((p) => p.id === id));
   const cap = levelDef.boatCapacity;
   const cons = levelDef.constraints;
+  const extra = levelDef.rules ?? {};
 
-  function stateKey(sides, boat) {
-    return sides.join("") + boat;
+  function stateKey(sides, boat, returnTrips) {
+    const returnKey = extra.maxReturnTrips == null ? 0 : Math.min(returnTrips, extra.maxReturnTrips);
+    return sides.join("") + boat + ":" + returnKey;
   }
 
   function isSafe(group) {
@@ -27,14 +29,46 @@ function bfsSolve(levelDef, allPeople) {
     return isSafe(passengers);
   }
 
+  function hasRequired(passengers, rule) {
+    if (!rule) return true;
+    const ids = rule.ids ?? [];
+    const types = rule.types ?? [];
+    return passengers.some((p) => ids.includes(p.id) || types.includes(p.type));
+  }
+
+  function moveRuleOk(passengers, dir, returnTrips) {
+    if (extra.noSolo && passengers.length < 2) return false;
+    if (dir === "R" && extra.outboundRequires && !hasRequired(passengers, extra.outboundRequires)) return false;
+    if (dir === "L" && extra.returnRequires && !hasRequired(passengers, extra.returnRequires)) return false;
+    if (extra.moveRequires && !hasRequired(passengers, extra.moveRequires)) return false;
+    if (dir === "L" && extra.returnCapacity && passengers.length > extra.returnCapacity) return false;
+    if (dir === "L" && extra.maxReturnTrips != null && returnTrips >= extra.maxReturnTrips) return false;
+    if (extra.weightLimit) {
+      const weights = extra.weights ?? {};
+      const total = passengers.reduce((sum, p) => sum + (weights[p.id] ?? weights[p.type] ?? 1), 0);
+      if (total > extra.weightLimit) return false;
+    }
+    if (extra.boatPairBans) {
+      const ids = passengers.map((p) => p.id);
+      const types = passengers.map((p) => p.type);
+      for (const ban of extra.boatPairBans) {
+        const a = ban[0], b = ban[1];
+        const hasA = ids.includes(a) || types.includes(a);
+        const hasB = ids.includes(b) || types.includes(b);
+        if (hasA && hasB) return false;
+      }
+    }
+    return true;
+  }
+
   // sides[i] = "L" or "R"
   const initSides = chars.map(() => "L");
-  const initKey = stateKey(initSides, "L");
-  const queue = [{ sides: initSides, boat: "L", moves: 0 }];
+  const initKey = stateKey(initSides, "L", 0);
+  const queue = [{ sides: initSides, boat: "L", moves: 0, returnTrips: 0 }];
   const visited = new Set([initKey]);
 
   while (queue.length) {
-    const { sides, boat, moves } = queue.shift();
+    const { sides, boat, moves, returnTrips } = queue.shift();
 
     // Goal: all on right
     if (sides.every((s) => s === "R")) return moves;
@@ -57,6 +91,7 @@ function bfsSolve(levelDef, allPeople) {
       const passengers = group.map((i) => chars[i]);
       if (!passengers.some((p) => p.driver)) continue;
       if (!isBoatSafe(passengers)) continue;
+      if (!moveRuleOk(passengers, toSide, returnTrips)) continue;
       subsets.push(group);
     }
 
@@ -69,10 +104,11 @@ function bfsSolve(levelDef, allPeople) {
       const rightGroup = chars.filter((_, i) => newSides[i] === "R");
       if (!isSafe(leftGroup) || !isSafe(rightGroup)) continue;
 
-      const key = stateKey(newSides, toSide);
+      const nextReturnTrips = returnTrips + (toSide === "L" ? 1 : 0);
+      const key = stateKey(newSides, toSide, nextReturnTrips);
       if (visited.has(key)) continue;
       visited.add(key);
-      queue.push({ sides: newSides, boat: toSide, moves: moves + 1 });
+      queue.push({ sides: newSides, boat: toSide, moves: moves + 1, returnTrips: nextReturnTrips });
     }
   }
 
@@ -114,6 +150,7 @@ let gameState = {
   timerInterval: null,
   startTime: null,
   elapsedSeconds: 0,
+  returnTrips: 0,
 };
 
 /* ═══════════════════════════════════════════════
@@ -235,6 +272,43 @@ const el = {
 
 const sideLabel = { left: "左岸", right: "右岸" };
 
+function difficultyMeta(lvl) {
+  const d = lvl.difficulty ?? {};
+  const tier = d.tier ?? "bronze";
+  const count = Math.max(1, Math.min(3, d.count ?? 1));
+  const label = tier === "gold" ? "ゴールド" : tier === "silver" ? "シルバー" : "ブロンズ";
+  return { tier, count, label };
+}
+
+function starText(count) {
+  return "☆".repeat(count);
+}
+
+function describeRequirement(rule) {
+  if (!rule) return "";
+  if (rule.text) return rule.text;
+  const names = [...(rule.ids ?? []), ...(rule.types ?? [])].map((key) => ({
+    father: "父", mother: "母", maid: "召使い", dog: "犬", son: "息子", daughter: "娘",
+    son1: "息子A", son2: "息子B", daughter1: "娘A", daughter2: "娘B",
+  }[key] ?? key));
+  return names.length ? names.join("か") : "";
+}
+
+function describeExtraRules(lvl) {
+  const r = lvl.rules ?? {};
+  const lines = [];
+  if (r.noSolo) lines.push("• 船は必ず2人以上で動かします");
+  if (r.moveRequires) lines.push(`• すべての移動に${describeRequirement(r.moveRequires)}が必要です`);
+  if (r.outboundRequires) lines.push(`• 右岸へ進む時は${describeRequirement(r.outboundRequires)}が必要です`);
+  if (r.returnRequires) lines.push(`• 左岸へ戻る時は${describeRequirement(r.returnRequires)}が必要です`);
+  if (r.returnCapacity) lines.push(`• 左岸へ戻る時は${r.returnCapacity}人までです`);
+  if (r.maxReturnTrips != null) lines.push(`• 左岸へ戻れるのは${r.maxReturnTrips}回までです`);
+  if (r.weightLimit) lines.push(`• 船の重さ制限は${r.weightLimit}です`);
+  if (r.boatPairBans?.length) lines.push(`• 船内で相性の悪い組み合わせがあります`);
+  if (r.nightMode) lines.push("• 夜の川です。画面が暗くなります");
+  return lines;
+}
+
 /* ═══════════════════════════════════════════════
    SCREEN NAVIGATION
    ═══════════════════════════════════════════════ */
@@ -274,9 +348,11 @@ function buildLevelGrid() {
     const clearCount = globalLevelClears[lvl.id] || 0;
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "level-card" + (cleared ? " cleared" : "") + (unlocked ? "" : " locked");
+    const diff = difficultyMeta(lvl);
+    card.className = "level-card" + (cleared ? " cleared" : "") + (unlocked ? "" : " locked") + ` diff-${diff.tier}`;
     card.disabled = !unlocked;
     card.innerHTML = `
+      <span class="level-stars" aria-label="${diff.label}">${starText(diff.count)}</span>
       <span class="level-num">${lvl.id}</span>
       <span class="level-card-title">${lvl.title}</span>
       ${cleared && best ? `<span class="level-best">${best.moves}手 ${formatTime(best.time)}</span>` : ""}
@@ -303,11 +379,13 @@ async function openIntroScreen(lvl) {
   // Constraints summary
   const cap = lvl.boatCapacity ?? 2;
   const capLabel = cap === 3 ? "最大3人乗り" : cap === 1 ? "1人乗り" : "最大2人乗り";
-  const cLines = [`• 船は${capLabel}`];
+  const diff = difficultyMeta(lvl);
+  const cLines = [`• 難易度：${diff.label} ${starText(diff.count)}`, `• 船は${capLabel}`];
   if (lvl.constraints.fatherDaughter) cLines.push("• 父は母がいないと娘を怒ります");
   if (lvl.constraints.motherSon)      cLines.push("• 母は父がいないと息子を怒ります");
   if (lvl.constraints.dogMaid)        cLines.push("• 犬は召使がいないとみんなを噛み殺します");
-  if (cLines.length === 1)            cLines.push("• 相性制約はありません");
+  cLines.push(...describeExtraRules(lvl));
+  if (cLines.length === 2)            cLines.push("• 相性制約はありません");
   elIntro.constraints.innerHTML = cLines.join("<br>");
 
   elIntro.moveLimit.textContent = lvl.moveLimit
@@ -354,6 +432,8 @@ function startGame(lvl) {
       p.role = lvl.constraints.dogMaid ? "召使必要" : "";
       p.roleRed = !!lvl.constraints.dogMaid;
     }
+    const w = lvl.rules?.weights?.[p.id] ?? lvl.rules?.weights?.[p.type];
+    if (w) p.role = p.role ? `${p.role} / 重さ${w}` : `重さ${w}`;
     return p;
   });
 
@@ -367,6 +447,7 @@ function startGame(lvl) {
     isMoving: false,
     elapsedSeconds: 0,
     startTime: Date.now(),
+    returnTrips: 0,
   });
 
   // Stage number in eyebrow
@@ -380,6 +461,7 @@ function startGame(lvl) {
 
   // Update active constraints in rules panel
   updateRulesPanel(lvl);
+  el.board?.classList.toggle("night-mode", !!lvl.rules?.nightMode);
 
   // Start timer
   clearInterval(gameState.timerInterval);
@@ -407,6 +489,7 @@ function updateRulesPanel(lvl) {
   if (lvl.constraints.fatherDaughter) items.push("父は母親がいないと、娘を怒ります。");
   if (lvl.constraints.motherSon)      items.push("母は父親がいないと息子を怒ります。");
   if (lvl.constraints.dogMaid)        items.push("犬は召使がいないと、ほかのみんなを噛み殺します。");
+  describeExtraRules(lvl).forEach((line) => items.push(line.replace(/^•\s*/, "")));
   if (lvl.moveLimit) items.push(`${lvl.moveLimit}手以内にクリアしてください。`);
   rulesEl.innerHTML = "<ol>" + items.map((t) => `<li>${t}</li>`).join("") + "</ol>";
 }
@@ -728,6 +811,9 @@ function validateMove() {
   if (!passengers.some((p) => p.driver))
     return { ok: false, message: "この二人では舟をこげません。父・母・召使の誰かを乗せてください。", conflictIds: gameState.selected };
 
+  const ruleProblem = findExtraRuleProblem(passengers);
+  if (ruleProblem) return ruleProblem;
+
   // Move limit check
   if (currentLevel?.moveLimit && gameState.moveCount >= currentLevel.moveLimit)
     return { ok: false, message: `手数制限（${currentLevel.moveLimit}手）を超えました。リセットして最初からやり直してください。`, conflictIds: [] };
@@ -742,11 +828,86 @@ function validateMove() {
 
 function cons() { return currentLevel?.constraints ?? { fatherDaughter: true, motherSon: true, dogMaid: true }; }
 
+function hasRequiredPassenger(passengers, rule) {
+  if (!rule) return true;
+  const ids = rule.ids ?? [];
+  const types = rule.types ?? [];
+  return passengers.some((p) => ids.includes(p.id) || types.includes(p.type));
+}
+
+function ruleConflictIds(passengers, rule) {
+  if (!rule) return passengers.map((p) => p.id);
+  const ids = rule.ids ?? [];
+  const types = rule.types ?? [];
+  const matched = passengers.filter((p) => ids.includes(p.id) || types.includes(p.type)).map((p) => p.id);
+  return matched.length ? matched : passengers.map((p) => p.id);
+}
+
+function findExtraRuleProblem(passengers) {
+  const r = currentLevel?.rules ?? {};
+  const dir = gameState.boatSide === "left" ? "R" : "L";
+  if (r.noSolo && passengers.length < 2) {
+    return { ok: false, message: "この船は二人以上でないと動かせません。", conflictIds: gameState.selected };
+  }
+  if (dir === "R" && r.outboundRequires && !hasRequiredPassenger(passengers, r.outboundRequires)) {
+    return { ok: false, message: `右岸へ進む時は${describeRequirement(r.outboundRequires)}が必要です。`, conflictIds: gameState.selected };
+  }
+  if (dir === "L" && r.returnRequires && !hasRequiredPassenger(passengers, r.returnRequires)) {
+    return { ok: false, message: `左岸へ戻る時は${describeRequirement(r.returnRequires)}が必要です。`, conflictIds: gameState.selected };
+  }
+  if (r.moveRequires && !hasRequiredPassenger(passengers, r.moveRequires)) {
+    return { ok: false, message: `このステージでは${describeRequirement(r.moveRequires)}が必ず船に必要です。`, conflictIds: gameState.selected };
+  }
+  if (dir === "L" && r.returnCapacity && passengers.length > r.returnCapacity) {
+    return { ok: false, message: `左岸へ戻る時は${r.returnCapacity}人までです。`, conflictIds: gameState.selected };
+  }
+  if (dir === "L" && r.maxReturnTrips != null && gameState.returnTrips >= r.maxReturnTrips) {
+    return { ok: false, message: `壊れそうな船です。左岸へ戻れるのは${r.maxReturnTrips}回までです。`, conflictIds: gameState.selected };
+  }
+  if (r.weightLimit) {
+    const weights = r.weights ?? {};
+    const total = passengers.reduce((sum, p) => sum + (weights[p.id] ?? weights[p.type] ?? 1), 0);
+    if (total > r.weightLimit) {
+      return { ok: false, message: `重さ${total}です。船の重さ制限${r.weightLimit}を超えています。`, conflictIds: gameState.selected };
+    }
+  }
+  if (r.boatPairBans) {
+    const ids = passengers.map((p) => p.id);
+    const types = passengers.map((p) => p.type);
+    for (const ban of r.boatPairBans) {
+      const [a, b] = ban;
+      const hasA = ids.includes(a) || types.includes(a);
+      const hasB = ids.includes(b) || types.includes(b);
+      if (hasA && hasB) {
+        return { ok: false, message: "この二人は船の中でケンカします。別の組み合わせにしましょう。", conflictIds: gameState.selected };
+      }
+    }
+  }
+  return null;
+}
+
 function findBoatPassengerProblem(passengers) {
   if (passengers.length < 2) return null;
   const c = cons();
+  const r = currentLevel?.rules ?? {};
   const types = new Set(passengers.map((p) => p.type));
   const ids   = new Set(passengers.map((p) => p.id));
+  if (r.weightLimit) {
+    const weights = r.weights ?? {};
+    const total = passengers.reduce((sum, p) => sum + (weights[p.id] ?? weights[p.type] ?? 1), 0);
+    if (total > r.weightLimit)
+      return { message: `重さ${total}で船の制限${r.weightLimit}を超えています！`, ids: passengers.map((p) => p.id) };
+  }
+  if (r.boatPairBans) {
+    const rawIds = passengers.map((p) => p.id);
+    const rawTypes = passengers.map((p) => p.type);
+    for (const ban of r.boatPairBans) {
+      const hasA = rawIds.includes(ban[0]) || rawTypes.includes(ban[0]);
+      const hasB = rawIds.includes(ban[1]) || rawTypes.includes(ban[1]);
+      if (hasA && hasB)
+        return { message: "この二人は船の中でケンカします！", ids: passengers.map((p) => p.id) };
+    }
+  }
   if (c.fatherDaughter && types.has("father") && types.has("daughter") && !types.has("mother"))
     return { message: "父と娘だけでは渡れません。父が娘を怒ります！", ids: passengers.filter((p) => p.type === "father" || p.type === "daughter").map((p) => p.id) };
   if (c.motherSon && types.has("mother") && types.has("son") && !types.has("father"))
@@ -798,6 +959,7 @@ function saveSnapshot() {
     peopleSides: people.map((p) => p.side),
     boatSide: gameState.boatSide,
     moveCount: gameState.moveCount,
+    returnTrips: gameState.returnTrips,
   });
 }
 
@@ -807,6 +969,7 @@ function undoMove() {
   snap.peopleSides.forEach((side, i) => { people[i].side = side; });
   gameState.boatSide = snap.boatSide;
   gameState.moveCount = snap.moveCount;
+  gameState.returnTrips = snap.returnTrips ?? 0;
   gameState.selected = [];
   gameState.disembarkTarget = null;
   if (el.moveLimitBadge && currentLevel?.moveLimit) {
@@ -831,6 +994,7 @@ function crossRiver() {
     gameState.selected = [];
     gameState.disembarkTarget = null;
     gameState.moveCount += 1;
+    if (nextSide === "left") gameState.returnTrips += 1;
     gameState.isMoving = false;
     render();
 
@@ -898,7 +1062,7 @@ function resetGame() {
   people.forEach((p) => { p.side = "left"; });
   Object.assign(gameState, {
     boatSide: "left", selected: [], disembarkTarget: null,
-    moveCount: 0, isMoving: false, elapsedSeconds: 0, startTime: Date.now(),
+    moveCount: 0, returnTrips: 0, isMoving: false, elapsedSeconds: 0, startTime: Date.now(),
   });
   if (el.submitScore) { el.submitScore.disabled = false; el.submitScore.textContent = "記録する"; }
   if (el.nameInput) el.nameInput.value = "";
