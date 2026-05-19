@@ -309,6 +309,27 @@ function describeExtraRules(lvl) {
   return lines;
 }
 
+function effectiveDriverIds(lvl) {
+  const req = lvl?.rules?.moveRequires;
+  const ids = req?.ids ?? [];
+  const types = req?.types ?? [];
+  if (ids.includes("maid")) return ["maid"];
+  if (ids.includes("father")) return ["father"];
+  if (ids.includes("mother")) return ["mother"];
+  if (types.includes("maid")) return ["maid"];
+  if (types.includes("father")) return ["father"];
+  if (types.includes("mother")) return ["mother"];
+  return ["father", "mother", "maid"];
+}
+
+function driverRuleText(lvl) {
+  const drivers = effectiveDriverIds(lvl);
+  if (drivers.length === 1 && drivers[0] === "maid") return "船は召使いだけがこげます。";
+  if (drivers.length === 1 && drivers[0] === "father") return "船は父だけがこげます。";
+  if (drivers.length === 1 && drivers[0] === "mother") return "船は母だけがこげます。";
+  return "船は父、母、召使だけがこげます。";
+}
+
 /* ═══════════════════════════════════════════════
    SCREEN NAVIGATION
    ═══════════════════════════════════════════════ */
@@ -380,12 +401,12 @@ async function openIntroScreen(lvl) {
   const cap = lvl.boatCapacity ?? 2;
   const capLabel = cap === 3 ? "最大3人乗り" : cap === 1 ? "1人乗り" : "最大2人乗り";
   const diff = difficultyMeta(lvl);
-  const cLines = [`• 難易度：${diff.label} ${starText(diff.count)}`, `• 船は${capLabel}`];
+  const cLines = [`• 難易度：${diff.label} ${starText(diff.count)}`, `• 船は${capLabel}`, `• ${driverRuleText(lvl).replace(/。$/, "")}`];
   if (lvl.constraints.fatherDaughter) cLines.push("• 父は母がいないと娘を怒ります");
   if (lvl.constraints.motherSon)      cLines.push("• 母は父がいないと息子を怒ります");
   if (lvl.constraints.dogMaid)        cLines.push("• 犬は召使がいないとみんなを噛み殺します");
   cLines.push(...describeExtraRules(lvl));
-  if (cLines.length === 2)            cLines.push("• 相性制約はありません");
+  if (cLines.length === 3)            cLines.push("• 相性制約はありません");
   elIntro.constraints.innerHTML = cLines.join("<br>");
 
   elIntro.moveLimit.textContent = lvl.moveLimit
@@ -417,11 +438,15 @@ elIntro.backBtn?.addEventListener("click", initSelectScreen);
    ═══════════════════════════════════════════════ */
 function startGame(lvl) {
   currentLevel = lvl;
+  const driverIds = effectiveDriverIds(lvl);
 
   // Clone people for this level with dynamic role labels
   people = lvl.characters.map((id) => {
     const master = PEOPLE_MASTER.find((p) => p.id === id);
     const p = { ...master, side: "left" };
+    p.driver = driverIds.includes(p.id);
+    if (p.driver) p.role = "舟をこげる";
+    else if (p.type === "father" || p.type === "mother" || p.type === "maid") p.role = "";
     if (p.type === "son") {
       p.role = lvl.constraints.motherSon ? "母NG" : "";
       p.roleRed = !!lvl.constraints.motherSon;
@@ -484,7 +509,7 @@ function updateRulesPanel(lvl) {
   const items = [
     "対岸に全員を渡してください。",
     `船は${capLabel}で移動できます。`,
-    "船は父、母、召使だけがこげます。",
+    driverRuleText(lvl),
   ];
   if (lvl.constraints.fatherDaughter) items.push("父は母親がいないと、娘を怒ります。");
   if (lvl.constraints.motherSon)      items.push("母は父親がいないと息子を怒ります。");
