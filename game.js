@@ -210,7 +210,7 @@ const el = {
   resetButton:   document.getElementById("resetButton"),
   backToSelect:  document.getElementById("backToSelect"),
   undoButton:    document.getElementById("undoButton"),
-  gameLevelNum:  document.getElementById("gameLevelNum"),
+  gameEyebrow:   document.getElementById("gameEyebrow"),
   moveCount:     document.getElementById("moveCount"),
   boatSideText:  document.getElementById("boatSideText"),
   selectionCount:document.getElementById("selectionCount"),
@@ -366,8 +366,8 @@ function startGame(lvl) {
     startTime: Date.now(),
   });
 
-  // Level number in title
-  if (el.gameLevelNum) el.gameLevelNum.textContent = `（${lvl.id}）`;
+  // Stage number in eyebrow
+  if (el.gameEyebrow) el.gameEyebrow.textContent = `STAGE ${lvl.id}`;
 
   // Move limit badge
   if (el.moveLimitBadge) {
@@ -980,6 +980,6 @@ function boatIcon() {
     }
   });
 
-  reportAccess();
+  // reportAccess();  // 開発中は無効化
   initSelectScreen();
 })();
