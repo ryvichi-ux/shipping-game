@@ -134,6 +134,7 @@ const PEOPLE_MASTER = [
    ═══════════════════════════════════════════════ */
 const STORAGE_KEY = "kawatari_progress_v1";
 const VERSION = "0.6.0";
+const DISPLAY_SINGLE_CLEAR_THROUGH_LEVEL = 29;
 let globalLevelClears = {};
 let moveHistory = [];      // undo snapshots: [{peopleSides, boatSide, moveCount}]
 let lastTapInfo = { id: null, time: 0 };  // cross-render double-tap tracking
@@ -198,8 +199,21 @@ async function reportSubmitScore(levelId, name, moves, time) {
 async function fetchGlobalStats() {
   try {
     const r = await fetch(STATS_URL);
-    return await r.json();
+    return normalizeStatsForDisplay(await r.json());
   } catch { return null; }
+}
+
+function normalizeStatsForDisplay(stats) {
+  if (!stats?.levelClears) return stats;
+
+  const levelClears = { ...stats.levelClears };
+  for (let id = 1; id <= DISPLAY_SINGLE_CLEAR_THROUGH_LEVEL; id += 1) {
+    const key = String(id);
+    if ((Number(levelClears[key]) || 0) > 0) levelClears[key] = 1;
+  }
+
+  const displayTotal = Object.values(levelClears).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  return { ...stats, clears: displayTotal || stats.clears, levelClears };
 }
 async function fetchLevelScores(levelId) {
   try {
