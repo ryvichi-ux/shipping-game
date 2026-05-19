@@ -412,9 +412,11 @@ h1 {
 
 /* ── Character PNG sprites ───────────────────────
    Source image: characters.png  1536×1024  4col×2row
-   Cell: 384×512px  Circle diameter in source: ~310px
-   Scale for 42px avatar: 42/310 = 0.1355
-   bg-size: 208px 139px
+   Measured circle crop origin (left, top) per char:
+     Row0: father(74,66) mother(436,66) son-cap(805,66) son-hd(1171,66)
+     Row1: dau-bow(64,516) dau-pig(432,516) maid(799,516) dog(1170,516)
+   Circle diameter: 290px  →  scale 42/290 = 0.1448
+   bg-size: 222px 148px
    ─────────────────────────────────────────────── */
 .char-sprite {
   display: block;
@@ -422,29 +424,29 @@ h1 {
   height: 100%;
   background-image: url('characters.png');
   background-repeat: no-repeat;
-  background-size: 208px 139px;
+  background-size: 222px 148px;
 }
-/* row 0 (top): father, mother, son-cap, son-headphones */
-.char-sprite[data-char="father"]            { background-position:   -5px  -7px; }
-.char-sprite[data-char="mother"]            { background-position:  -57px  -7px; }
-.char-sprite[data-char="son-cap"]           { background-position: -109px  -7px; }
-.char-sprite[data-char="son-headphones"]    { background-position: -161px  -7px; }
-/* row 1 (bottom): daughter-bow, daughter-pigtails, maid, dog */
-.char-sprite[data-char="daughter-bow"]      { background-position:   -5px -76px; }
-.char-sprite[data-char="daughter-pigtails"] { background-position:  -57px -76px; }
-.char-sprite[data-char="maid"]              { background-position: -109px -76px; }
-.char-sprite[data-char="dog"]               { background-position: -161px -76px; }
+/* row 0 */
+.char-sprite[data-char="father"]            { background-position:  -11px -10px; }
+.char-sprite[data-char="mother"]            { background-position:  -63px -10px; }
+.char-sprite[data-char="son-cap"]           { background-position: -117px -10px; }
+.char-sprite[data-char="son-headphones"]    { background-position: -170px -10px; }
+/* row 1 */
+.char-sprite[data-char="daughter-bow"]      { background-position:   -9px -75px; }
+.char-sprite[data-char="daughter-pigtails"] { background-position:  -63px -75px; }
+.char-sprite[data-char="maid"]              { background-position: -116px -75px; }
+.char-sprite[data-char="dog"]               { background-position: -169px -75px; }
 
-/* boat-mini-icon (33px): scale 33/310 = 0.1065, bg-size 164×109 */
-.boat-mini-icon .char-sprite { background-size: 164px 109px; }
-.boat-mini-icon .char-sprite[data-char="father"]            { background-position:   -4px  -5px; }
-.boat-mini-icon .char-sprite[data-char="mother"]            { background-position:  -45px  -5px; }
-.boat-mini-icon .char-sprite[data-char="son-cap"]           { background-position:  -86px  -5px; }
-.boat-mini-icon .char-sprite[data-char="son-headphones"]    { background-position: -127px  -5px; }
-.boat-mini-icon .char-sprite[data-char="daughter-bow"]      { background-position:   -4px -60px; }
-.boat-mini-icon .char-sprite[data-char="daughter-pigtails"] { background-position:  -45px -60px; }
-.boat-mini-icon .char-sprite[data-char="maid"]              { background-position:  -86px -60px; }
-.boat-mini-icon .char-sprite[data-char="dog"]               { background-position: -127px -60px; }
+/* boat-mini-icon (33px): scale 33/290 = 0.1138, bg-size 175×117 */
+.boat-mini-icon .char-sprite { background-size: 175px 117px; }
+.boat-mini-icon .char-sprite[data-char="father"]            { background-position:   -8px  -8px; }
+.boat-mini-icon .char-sprite[data-char="mother"]            { background-position:  -50px  -8px; }
+.boat-mini-icon .char-sprite[data-char="son-cap"]           { background-position:  -92px  -8px; }
+.boat-mini-icon .char-sprite[data-char="son-headphones"]    { background-position: -133px  -8px; }
+.boat-mini-icon .char-sprite[data-char="daughter-bow"]      { background-position:   -7px -59px; }
+.boat-mini-icon .char-sprite[data-char="daughter-pigtails"] { background-position:  -49px -59px; }
+.boat-mini-icon .char-sprite[data-char="maid"]              { background-position:  -91px -59px; }
+.boat-mini-icon .char-sprite[data-char="dog"]               { background-position: -133px -59px; }
 
 .person-name,
 .person-role {
@@ -1148,26 +1150,27 @@ h1 {
     height: 28px;
   }
 
-  /* sprite overrides for small screens (36px avatar, 30px boat-mini) */
-  .char-sprite { background-size: 178px 119px; }
-  .char-sprite[data-char="father"]            { background-position:   -4px  -6px; }
-  .char-sprite[data-char="mother"]            { background-position:  -49px  -6px; }
-  .char-sprite[data-char="son-cap"]           { background-position:  -94px  -6px; }
-  .char-sprite[data-char="son-headphones"]    { background-position: -138px  -6px; }
-  .char-sprite[data-char="daughter-bow"]      { background-position:   -4px -65px; }
-  .char-sprite[data-char="daughter-pigtails"] { background-position:  -49px -65px; }
-  .char-sprite[data-char="maid"]              { background-position:  -94px -65px; }
-  .char-sprite[data-char="dog"]               { background-position: -138px -65px; }
+  /* sprite overrides for small screens: 36px avatar (scale 36/290=0.1241, bg 191×127) */
+  .char-sprite { background-size: 191px 127px; }
+  .char-sprite[data-char="father"]            { background-position:   -9px  -8px; }
+  .char-sprite[data-char="mother"]            { background-position:  -54px  -8px; }
+  .char-sprite[data-char="son-cap"]           { background-position: -100px  -8px; }
+  .char-sprite[data-char="son-headphones"]    { background-position: -145px  -8px; }
+  .char-sprite[data-char="daughter-bow"]      { background-position:   -8px -64px; }
+  .char-sprite[data-char="daughter-pigtails"] { background-position:  -54px -64px; }
+  .char-sprite[data-char="maid"]              { background-position:  -99px -64px; }
+  .char-sprite[data-char="dog"]               { background-position: -145px -64px; }
 
-  .boat-mini-icon .char-sprite { background-size: 149px 99px; }
-  .boat-mini-icon .char-sprite[data-char="father"]            { background-position:   -4px  -5px; }
-  .boat-mini-icon .char-sprite[data-char="mother"]            { background-position:  -41px  -5px; }
-  .boat-mini-icon .char-sprite[data-char="son-cap"]           { background-position:  -78px  -5px; }
-  .boat-mini-icon .char-sprite[data-char="son-headphones"]    { background-position: -115px  -5px; }
-  .boat-mini-icon .char-sprite[data-char="daughter-bow"]      { background-position:   -4px -54px; }
-  .boat-mini-icon .char-sprite[data-char="daughter-pigtails"] { background-position:  -41px -54px; }
-  .boat-mini-icon .char-sprite[data-char="maid"]              { background-position:  -78px -54px; }
-  .boat-mini-icon .char-sprite[data-char="dog"]               { background-position: -115px -54px; }
+  /* 30px boat-mini (scale 30/290=0.1034, bg 159×106) */
+  .boat-mini-icon .char-sprite { background-size: 159px 106px; }
+  .boat-mini-icon .char-sprite[data-char="father"]            { background-position:   -8px  -7px; }
+  .boat-mini-icon .char-sprite[data-char="mother"]            { background-position:  -45px  -7px; }
+  .boat-mini-icon .char-sprite[data-char="son-cap"]           { background-position:  -83px  -7px; }
+  .boat-mini-icon .char-sprite[data-char="son-headphones"]    { background-position: -121px  -7px; }
+  .boat-mini-icon .char-sprite[data-char="daughter-bow"]      { background-position:   -7px -53px; }
+  .boat-mini-icon .char-sprite[data-char="daughter-pigtails"] { background-position:  -45px -53px; }
+  .boat-mini-icon .char-sprite[data-char="maid"]              { background-position:  -83px -53px; }
+  .boat-mini-icon .char-sprite[data-char="dog"]               { background-position: -121px -53px; }
 }
 
 @media (min-width: 760px) {
