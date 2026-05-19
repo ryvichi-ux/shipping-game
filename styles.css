@@ -213,7 +213,7 @@ h1 {
   position: relative;
   min-height: 58svh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 124px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 26px;
   overflow: hidden;
@@ -546,8 +546,10 @@ h1 {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.3), transparent 24%),
-    linear-gradient(180deg, rgba(38, 210, 255, 0.78), rgba(32, 96, 188, 0.84) 50%, rgba(10, 24, 68, 0.95));
+    radial-gradient(ellipse at 48% 3%, rgba(255, 255, 255, 0.42), transparent 18%),
+    radial-gradient(ellipse at 20% 38%, rgba(120, 230, 255, 0.42), transparent 28%),
+    radial-gradient(ellipse at 74% 64%, rgba(14, 82, 166, 0.6), transparent 34%),
+    linear-gradient(180deg, #68d6ef 0%, #2ea7d8 34%, #1e78bc 68%, #0d3d81 100%);
   transition: background 180ms ease;
 }
 
@@ -556,9 +558,11 @@ h1 {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.2), transparent 16%, transparent 84%, rgba(255, 255, 255, 0.16)),
-    repeating-linear-gradient(118deg, transparent 0 28px, rgba(255, 255, 255, 0.18) 29px 31px, transparent 32px 60px);
-  animation: water 9s linear infinite;
+    linear-gradient(90deg, rgba(255, 255, 255, 0.26), transparent 13%, transparent 86%, rgba(255, 255, 255, 0.2)),
+    repeating-radial-gradient(ellipse at 20% 35%, rgba(255, 255, 255, 0.22) 0 2px, transparent 3px 22px),
+    repeating-linear-gradient(166deg, transparent 0 26px, rgba(255, 255, 255, 0.2) 27px 30px, transparent 31px 58px);
+  mix-blend-mode: screen;
+  animation: water 12s linear infinite;
 }
 
 .river::after {
@@ -566,14 +570,18 @@ h1 {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0;
   background:
-    radial-gradient(circle at 50% 48%, rgba(255, 95, 115, 0.72), transparent 42%),
-    linear-gradient(180deg, rgba(255, 95, 115, 0.35), rgba(121, 13, 34, 0.48));
+    radial-gradient(ellipse at 52% 22%, rgba(255,255,255,0.5) 0 5%, transparent 6% 100%),
+    radial-gradient(ellipse at 42% 72%, rgba(255,255,255,0.32) 0 4%, transparent 5% 100%),
+    linear-gradient(180deg, rgba(255,255,255,0.08), transparent 28%, rgba(0,25,80,0.22));
+  opacity: 0.72;
   transition: opacity 180ms ease;
 }
 
 .board.has-boat-conflict .river::after {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 95, 115, 0.72), transparent 42%),
+    linear-gradient(180deg, rgba(255, 95, 115, 0.35), rgba(121, 13, 34, 0.48));
   opacity: 1;
 }
 
@@ -583,13 +591,12 @@ h1 {
   position: absolute;
   inset: 0;
   content: "";
-  background-image: repeating-linear-gradient(
-    162deg,
-    transparent 0 18px,
-    rgba(97, 240, 255, 0.22) 19px 21px,
-    transparent 22px 44px
-  );
-  animation: water 6.8s linear infinite;
+  background-image:
+    repeating-linear-gradient(174deg, transparent 0 16px, rgba(220, 250, 255, 0.35) 17px 19px, transparent 20px 48px),
+    repeating-linear-gradient(8deg, transparent 0 40px, rgba(2, 70, 150, 0.18) 41px 44px, transparent 45px 80px);
+  background-size: 150px 72px, 120px 90px;
+  animation: water 8.5s linear infinite;
+  opacity: 0.82;
 }
 
 .water-lines::before {
@@ -609,9 +616,9 @@ h1 {
   --boat-x: 33%;
   position: absolute;
   left: var(--boat-x);
-  top: 55%;
-  width: 112px;
-  height: 82px;
+  top: 57%;
+  width: 142px;
+  height: 88px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -623,12 +630,31 @@ h1 {
   outline: none;
 }
 
+.boat::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  top: 4px;
+  bottom: -2px;
+  background: url("boat.png") center / contain no-repeat;
+  filter: drop-shadow(0 16px 16px rgba(0, 0, 0, 0.34));
+  transform: scaleX(1);
+  transform-origin: center;
+  transition: transform 220ms ease, filter 180ms ease;
+  z-index: 1;
+}
+
 .boat:focus-visible {
   filter: drop-shadow(0 0 0.7rem rgba(255, 255, 255, 0.85));
 }
 
 .boat[data-side="right"] {
   --boat-x: 67%;
+}
+
+.boat[data-side="right"]::before {
+  transform: scaleX(-1);
 }
 
 .boat.moving {
@@ -639,42 +665,23 @@ h1 {
   animation: shake 420ms ease;
 }
 
-.boat.drop-target .boat-body {
-  border-color: rgba(97, 240, 255, 0.9);
-  box-shadow:
-    inset 0 4px 0 rgba(255, 230, 194, 0.5),
-    inset 0 -13px 14px rgba(59, 28, 10, 0.32),
-    0 0 0 3px rgba(97, 240, 255, 0.3),
-    0 0 28px rgba(97, 240, 255, 0.55),
-    0 14px 22px rgba(0, 0, 0, 0.38);
-  transition: box-shadow 160ms ease, border-color 160ms ease;
+.boat.drop-target::before {
+  filter:
+    drop-shadow(0 0 0.8rem rgba(97, 240, 255, 0.9))
+    drop-shadow(0 16px 16px rgba(0, 0, 0, 0.34));
 }
 
 .boat-body {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: 15px;
-  height: 45px;
-  border: 1px solid rgba(255, 236, 210, 0.8);
-  border-radius: 10px 10px 30px 30px;
-  background:
-    linear-gradient(90deg, transparent 0 10%, rgba(255, 255, 255, 0.2) 11% 13%, transparent 14% 86%, rgba(255, 255, 255, 0.16) 87% 89%, transparent 90%),
-    linear-gradient(180deg, #dfa060 0%, #a86531 45%, #75431f 100%);
-  box-shadow:
-    inset 0 4px 0 rgba(255, 230, 194, 0.5),
-    inset 0 -13px 14px rgba(59, 28, 10, 0.32),
-    0 14px 22px rgba(0, 0, 0, 0.38);
-  transition: filter 180ms ease, outline-color 180ms ease, border-color 180ms ease;
-  clip-path: polygon(0 20%, 10% 0, 90% 0, 100% 20%, 83% 94%, 17% 94%);
+  display: none;
 }
 
-.boat.danger .boat-body,
-.boat.conflict .boat-body {
-  filter: saturate(1.45) brightness(1.12);
-  border-color: rgba(255, 216, 222, 0.95);
-  outline: 3px solid rgba(255, 95, 115, 0.46);
-  outline-offset: 2px;
+.boat.danger::before,
+.boat.conflict::before {
+  filter:
+    saturate(1.45)
+    brightness(1.1)
+    drop-shadow(0 0 0.9rem rgba(255, 95, 115, 0.72))
+    drop-shadow(0 16px 16px rgba(0, 0, 0, 0.34));
 }
 
 .boat-bench {
@@ -706,16 +713,7 @@ h1 {
 }
 
 .boat-oar {
-  position: absolute;
-  left: 50%;
-  top: 45px;
-  width: 84px;
-  height: 5px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #f4c986, #8a4e22);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22);
-  transform-origin: center;
-  z-index: 0;
+  display: none;
 }
 
 .boat-oar::after {
@@ -824,14 +822,17 @@ h1 {
 
 .boat-ripple {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 7px;
-  height: 12px;
+  left: 2px;
+  right: 2px;
+  bottom: 10px;
+  height: 18px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(97, 240, 255, 0.55), transparent 70%);
-  filter: blur(1px);
+  background:
+    radial-gradient(ellipse at 34% 50%, rgba(255, 255, 255, 0.48), transparent 54%),
+    radial-gradient(ellipse at 68% 60%, rgba(116, 226, 255, 0.48), transparent 64%);
+  filter: blur(0.5px);
   animation: pulse 1.8s ease-in-out infinite;
+  z-index: 0;
 }
 
 /* ── Controls ───────────────────────────────────── */
@@ -1103,7 +1104,7 @@ h1 {
   }
 
   .board {
-    grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 132px minmax(0, 1fr);
     min-height: 56svh;
     border-radius: 23px;
   }
@@ -1144,8 +1145,8 @@ h1 {
   }
 
   .boat {
-    width: 112px;
-    height: 78px;
+    width: 128px;
+    height: 80px;
   }
 
   .boat-passengers {
