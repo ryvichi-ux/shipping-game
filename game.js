@@ -133,8 +133,7 @@ const PEOPLE_MASTER = [
    GLOBAL STATE
    ═══════════════════════════════════════════════ */
 const STORAGE_KEY = "kawatari_progress_v1";
-const VERSION = "0.6.0";
-const DISPLAY_SINGLE_CLEAR_THROUGH_LEVEL = 29;
+const VERSION = "1.0.1";
 let globalLevelClears = {};
 let moveHistory = [];      // undo snapshots: [{peopleSides, boatSide, moveCount}]
 let lastTapInfo = { id: null, time: 0 };  // cross-render double-tap tracking
@@ -176,45 +175,92 @@ function isCleared(levelId) { return !!loadProgress()[levelId]; }
 function bestRecord(levelId) { return loadProgress()[levelId] || null; }
 
 /* ═══════════════════════════════════════════════
+   REPORT STORAGE — デバイス単位の重複排除
+   ═══════════════════════════════════════════════
+   kawatari_reported_v1 に以下を保存:
+   {
+     access: true,          ← 訪問報告済み
+     clears: { "1": true }  ← 各ステージのクリア報告済み
+   }
+   ═══════════════════════════════════════════════ */
+const REPORT_KEY = "kawatari_reported_v1";
+
+function getReported() {
+  try { return JSON.parse(localStorage.getItem(REPORT_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveReported(r) {
+  try { localStorage.setItem(REPORT_KEY, JSON.stringify(r)); } catch {}
+}
+
+// 旧フラグ (v0.9.x) を新フォーマットへ移行
+(function migrateOldFlags() {
+  try {
+    if (localStorage.getItem("kawatari_access_reported")) {
+      const r = getReported();
+      if (!r.access) { r.access = true; saveReported(r); }
+      localStorage.removeItem("kawatari_access_reported");
+    }
+  } catch {}
+})();
+
+/* ═══════════════════════════════════════════════
    GLOBAL STATS (Cloudflare Pages Function)
    ═══════════════════════════════════════════════ */
 const STATS_URL = "/api/stats";
 
+/**
+ * 訪問カウント：このデバイスで初めて訪問したときのみサーバに送る。
+ * ページを何度リロードしても、同一デバイスからは1回だけ記録される。
+ */
 async function reportAccess() {
-  const flagKey = "kawatari_access_reported";
-  if (localStorage.getItem(flagKey)) return;
+  const r = getReported();
+  if (r.access) return;  // このデバイスはすでに訪問済み
   try {
-    await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "access" }) });
-    localStorage.setItem(flagKey, "1");
+    const res = await fetch(STATS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "access" }),
+    });
+    if (res.ok) { r.access = true; saveReported(r); }  // 成功時のみフラグを立てる
   } catch {}
 }
+
+/**
+ * クリアカウント：このデバイスで各ステージを初めてクリアしたときのみサーバに送る。
+ * 同じステージを何度クリアしても、同一デバイスからは1回だけ記録される。
+ */
 async function reportCountClear(levelId, moves, time) {
-  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "count_clear", levelId, moves, time }) }); }
-  catch {}
+  const r = getReported();
+  if (!r.clears) r.clears = {};
+  if (r.clears[String(levelId)]) return;  // このステージはすでに報告済み
+  try {
+    const res = await fetch(STATS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "count_clear", levelId, moves, time }),
+    });
+    if (res.ok) { r.clears[String(levelId)] = true; saveReported(r); }  // 成功時のみ記録
+  } catch {}
 }
+
 async function reportSubmitScore(levelId, name, moves, time) {
-  try { await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "submit_score", levelId, name, moves, time }) }); }
-  catch {}
+  try {
+    await fetch(STATS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "submit_score", levelId, name, moves, time }),
+    });
+  } catch {}
 }
+
 async function fetchGlobalStats() {
   try {
     const r = await fetch(STATS_URL);
-    return normalizeStatsForDisplay(await r.json());
+    return await r.json();
   } catch { return null; }
 }
 
-function normalizeStatsForDisplay(stats) {
-  if (!stats?.levelClears) return stats;
-
-  const levelClears = { ...stats.levelClears };
-  for (let id = 1; id <= DISPLAY_SINGLE_CLEAR_THROUGH_LEVEL; id += 1) {
-    const key = String(id);
-    if ((Number(levelClears[key]) || 0) > 0) levelClears[key] = 1;
-  }
-
-  const displayTotal = Object.values(levelClears).reduce((sum, value) => sum + (Number(value) || 0), 0);
-  return { ...stats, clears: displayTotal || stats.clears, levelClears };
-}
 async function fetchLevelScores(levelId) {
   try {
     const r = await fetch(STATS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "scores", levelId }) });
@@ -391,7 +437,7 @@ function buildLevelGrid() {
       <span class="level-num">${lvl.id}</span>
       <span class="level-card-title">${lvl.title}</span>
       ${cleared && best ? `<span class="level-best">${best.moves}手 ${formatTime(best.time)}</span>` : ""}
-      ${unlocked && clearCount > 0 ? `<span class="level-clears">（${clearCount}人クリア）</span>` : ""}
+      ${clearCount > 0 ? `<span class="level-clears">（${clearCount}人クリア）</span>` : ""}
       ${!unlocked ? `<span class="level-lock">🔒</span>` : ""}
       ${cleared ? `<span class="level-check">✓</span>` : ""}
     `;
@@ -1169,23 +1215,9 @@ function boatIcon() {
 }
 
 /* ═══════════════════════════════════════════════
-   BOOT — verify levels & show select screen
+   BOOT — show select screen
    ═══════════════════════════════════════════════ */
-(function boot() {
-  // Verify all levels are solvable (dev check — logs to console)
-  LEVELS.forEach((lvl) => {
-    const min = bfsSolve(lvl, PEOPLE_MASTER);
-    if (min === null) {
-      console.error(`Level ${lvl.id} "${lvl.title}" is UNSOLVABLE!`);
-    } else {
-      if (lvl.moveLimit && min > lvl.moveLimit) {
-        console.error(`Level ${lvl.id} "${lvl.title}" moveLimit ${lvl.moveLimit} < minimum ${min}!`);
-      } else {
-        console.log(`Level ${lvl.id}: min=${min} moves${lvl.moveLimit ? ` (limit: ${lvl.moveLimit})` : ""} ✓`);
-      }
-    }
-  });
-
-  // reportAccess();  // 開発中は無効化
+(async function boot() {
+  await reportAccess();   // アクセス記録をstats取得前に完了させる
   initSelectScreen();
 })();
